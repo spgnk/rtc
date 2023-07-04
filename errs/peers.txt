@@ -1,0 +1,6 @@
+errPS001 = "invalid data state of this peer connection"
+errPS002 = "this peer connecition was received data"
+errPS003 = "cannot add candidate peer connection with input peerConnectionID is nil"
+errPS0041 = "upList is nil"
+errPS0042 = "upList info is nil"
+errPS0043 = "track ids length is 0"
