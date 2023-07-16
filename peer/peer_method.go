@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 
@@ -16,7 +15,7 @@ import (
 
 func (p *Peer) stackDebug(v ...string) {
 	if p.debug == "1" {
-		logs.Stack(v...)
+		p.Stack(v...)
 	}
 }
 
@@ -164,7 +163,7 @@ func (p *Peer) modifyBitrate(remoteTrack *webrtc.TrackRemote) {
 			}})
 
 			if errSend != nil {
-				logs.Error("Modify bitrate write rtcp err: ", errSend.Error())
+				p.Error("Modify bitrate write rtcp err: " + errSend.Error())
 				return
 			}
 		}
@@ -195,7 +194,7 @@ func (p *Peer) pictureLossIndication(remoteTrack *webrtc.TrackRemote) {
 		})
 
 		if errSend != nil {
-			logs.Error("Picture loss indication write rtcp err: ", errSend.Error())
+			p.Error("Picture loss indication write rtcp err: " + errSend.Error())
 			return
 		}
 	}
@@ -218,7 +217,7 @@ func (p *Peer) SendPictureLossIndication() {
 	})
 
 	if errSend != nil {
-		logs.Error("Picture loss indication write rtcp err: ", errSend.Error())
+		p.Error("Picture loss indication write rtcp err: " + errSend.Error())
 		return
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lamhai1401/gologs/loki"
 	"github.com/pion/webrtc/v3"
 	"github.com/spgnk/rtc/utils"
 )
@@ -25,6 +26,8 @@ type Configs struct {
 	AllowDownAudio   bool
 
 	IsCreateDC bool
+
+	logger loki.Log
 }
 
 // TrackConfig setting init track config

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/lamhai1401/gologs/logs"
+	"github.com/lamhai1401/gologs/loki"
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 
@@ -38,6 +38,8 @@ type Peer struct {
 
 	duplicated map[string]bool
 	pli        int // set PLI interval
+
+	logger loki.Log
 }
 
 // NewPeerConnection linter
@@ -55,6 +57,7 @@ func newPeerConnection(configs *Configs) *Peer {
 		config:      configs,
 		debug:       os.Getenv("DEBUG"),
 		duplicated:  make(map[string]bool),
+		logger:      configs.logger,
 	}
 
 	if configs.Bitrate == nil {
@@ -92,12 +95,12 @@ func (p *Peer) InitDC(
 	if !p.config.IsCreateDC {
 		// Register data channel creation handling
 		peerConnection.OnDataChannel(func(d *webrtc.DataChannel) {
-			logs.Info(fmt.Sprintf("New DataChannel %s %d\n", d.Label(), d.ID()))
-			logs.Warn("receive DC, handle open")
+			p.Info(fmt.Sprintf("New DataChannel %s %d\n", d.Label(), d.ID()))
+			p.Warn("receive DC, handle open")
 
 			// Register channel opening handling
 			d.OnOpen(func() {
-				logs.Warn(fmt.Sprintf("Data channel '%s'-'%d' open.\n", d.Label(), d.ID()))
+				p.Warn(fmt.Sprintf("Data channel '%s'-'%d' open.\n", d.Label(), d.ID()))
 				handleOnDatachannel(p.GetPeerConnectionID(), d)
 
 				// Detach the data channel
@@ -131,7 +134,7 @@ func (p *Peer) InitDC(
 
 		// Register channel opening handling
 		dataChannel.OnOpen(func() {
-			logs.Warn(fmt.Sprintf("Data channel '%s'-'%d' open.\n", dataChannel.Label(), dataChannel.ID()))
+			p.Warn(fmt.Sprintf("Data channel '%s'-'%d' open.\n", dataChannel.Label(), dataChannel.ID()))
 			handleOnDatachannel(p.GetPeerConnectionID(), dataChannel)
 
 			// Detach the data channel
@@ -181,7 +184,7 @@ func (p *Peer) Close() {
 		p.setClose(true)
 		p.setBitrate(nil)
 		if err := p.closeConn(); err != nil {
-			logs.Error(err.Error())
+			p.Error(err.Error())
 		}
 		// logs.Warn(fmt.Sprintf("%s_%s conn was closed", p.getPeerConnectionID(), p.getCookieID()))
 	}
@@ -318,7 +321,7 @@ func (p *Peer) AddICECandidate(icecandidate interface{}) error {
 
 	if conn.RemoteDescription() == nil {
 		p.addIceCache(candidateInit)
-		logs.Info(fmt.Sprintf("%s Add candidate to cache because remote is nil or peer states is %v", *p.GetPeerConnectionID(), p.IsConnected()))
+		p.Info(fmt.Sprintf("%s Add candidate to cache because remote is nil or peer states is %v", *p.GetPeerConnectionID(), p.IsConnected()))
 		return nil
 	}
 
@@ -383,7 +386,6 @@ func getNodeLevel() int {
 
 	level, err := strconv.Atoi(nodeLevel)
 	if err != nil {
-		logs.Error("Get node level err: ", err.Error())
 		return 0
 	}
 
