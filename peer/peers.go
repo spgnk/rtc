@@ -28,7 +28,7 @@ type Peers struct {
 // NewPeers mutilpe peer controller
 func NewPeers(
 	signalID *string, // client signal ID
-	logger *loki.Log,
+	logger loki.Log,
 ) Connections {
 	ps := &Peers{
 		signalID: signalID,
@@ -36,7 +36,7 @@ func NewPeers(
 		isClosed: false,
 		states:   utils.NewAdvanceMap(),
 		headers:  make(map[string]*rtp.Header),
-		logger:   *logger,
+		logger:   logger,
 	}
 
 	// ps.serve()
