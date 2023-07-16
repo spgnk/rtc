@@ -3,7 +3,6 @@ package peer
 import (
 	"fmt"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/spgnk/rtc/utils"
 )
 
@@ -82,7 +81,7 @@ func (p *Peers) closePeer(peerConnectionID *string) {
 		// close peer
 		client.Close()
 
-		logs.Info(fmt.Sprintf("%s_%s_%s peerConn was removed", *p.getSignalID(), *peerConnectionID, *client.getCookieID()))
+		p.Info(fmt.Sprintf("%s_%s_%s peerConn was removed", *p.getSignalID(), *peerConnectionID, *client.getCookieID()))
 		client = nil
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 
@@ -451,7 +450,6 @@ func (t *LocalTracks) replaceVideoRTPTrack(trackID, codec *string) error {
 	}
 
 	t.setVideoTracks(trackID, newRTPTrack)
-	logs.Info(*trackID, "has new video track with mimtype", *codec)
 	return nil
 }
 
@@ -482,7 +480,6 @@ func (t *LocalTracks) replaceAudioRTPTrack(trackID, codec *string) error {
 	}
 
 	t.setAudioTracks(trackID, newRTPTrack)
-	logs.Info(*trackID, "has new audio track with mimtype", *codec)
 	return nil
 }
 

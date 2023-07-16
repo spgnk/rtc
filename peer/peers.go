@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lamhai1401/gologs/logs"
+	"github.com/lamhai1401/gologs/loki"
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 
@@ -22,11 +22,13 @@ type Peers struct {
 	headers   map[string]*rtp.Header // save data header with for data header
 	isClosed  bool
 	mutex     sync.RWMutex
+	logger    loki.Log
 }
 
 // NewPeers mutilpe peer controller
 func NewPeers(
 	signalID *string, // client signal ID
+	logger *loki.Log,
 ) Connections {
 	ps := &Peers{
 		signalID: signalID,
@@ -34,6 +36,7 @@ func NewPeers(
 		isClosed: false,
 		states:   utils.NewAdvanceMap(),
 		headers:  make(map[string]*rtp.Header),
+		logger:   *logger,
 	}
 
 	// ps.serve()
@@ -92,10 +95,11 @@ func (p *Peers) AddDCConnection(
 	// remove if exist
 	if peer := p.GetConnection(configs.PeerConnectionID); peer != nil {
 		p.RemoveConnection(configs.PeerConnectionID)
-		logs.Info(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID))
+		p.Info(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID))
 	}
 
 	// add new one
+	configs.logger = p.logger
 	peer := newPeerConnection(configs)
 
 	conn, err := peer.InitDC(handleOnDatachannel)
@@ -135,10 +139,11 @@ func (p *Peers) AddConnection(
 	// remove if exist
 	if peer := p.GetConnection(configs.PeerConnectionID); peer != nil {
 		p.RemoveConnection(configs.PeerConnectionID)
-		logs.Info(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID))
+		p.Info(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID))
 	}
 
 	// add new one
+	configs.logger = p.logger
 	peer := newPeerConnection(configs)
 
 	conn, err := peer.Init()
@@ -151,7 +156,7 @@ func (p *Peers) AddConnection(
 		// find trackId in stream ọbject
 		memDestCanPush := (kind == "video" && peer.config.AllowUpVideo) || (kind == "audio" && peer.config.AllowUpAudio)
 		if !memDestCanPush {
-			logs.Warn(fmt.Sprintf("%s is not allow to up %s. No need to read RTP", *peer.GetPeerConnectionID(), kind))
+			p.Warn(fmt.Sprintf("%s is not allow to up %s. No need to read RTP", *peer.GetPeerConnectionID(), kind))
 			return
 		}
 		if kind == "video" {

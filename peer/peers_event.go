@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 )
@@ -29,7 +28,7 @@ func (p *Peers) handleICEConnectionState(
 		return
 	}
 
-	logs.Warn(fmt.Sprintf("%s_%s_%s current ICE states: %s", *signalID, *peerConnectionID, *peer.getCookieID(), state))
+	p.Warn(fmt.Sprintf("%s_%s_%s current ICE states: %s", *signalID, *peerConnectionID, *peer.getCookieID(), state))
 	p.setState(peerConnectionID, &state)
 
 	switch state {
@@ -54,7 +53,7 @@ func (p *Peers) handleICEConnectionState(
 		// }))
 		p.checkFailedState(peer.GetPeerConnectionID(), peer.getCookieID(), handleFailedPeer)
 	case utils.Closed:
-		logs.Info(fmt.Sprintf("%s_%s_%s ICE state is %s", *signalID, *peer.GetPeerConnectionID(), *peer.getCookieID(), state))
+		p.Info(fmt.Sprintf("%s_%s_%s ICE state is %s", *signalID, *peer.GetPeerConnectionID(), *peer.getCookieID(), state))
 	default:
 		return
 	}
@@ -70,9 +69,9 @@ func (p *Peers) checkFailedState(
 		return
 	}
 	if (state == "failed" || state == "disconnected" || state == "closed") && *peerConnectionID == *peer.GetPeerConnectionID() && *cookieID == *peer.GetCookieID() {
-		logs.Error(errs.ErrP004)
+		p.Error(errs.ErrP004.Error())
 		p.RemoveConnection(peerConnectionID)
-		logs.Warn(fmt.Sprintf("Remove old peerConn (%s_%s_%s) has state %s", *p.getSignalID(), *peerConnectionID, *peer.GetCookieID(), state))
+		p.Warn(fmt.Sprintf("Remove old peerConn (%s_%s_%s) has state %s", *p.getSignalID(), *peerConnectionID, *peer.GetCookieID(), state))
 		if handleFailedPeer != nil {
 			handleFailedPeer(p.getSignalID(), peer.GetRole(), peer.GetPeerConnectionID())
 		}
