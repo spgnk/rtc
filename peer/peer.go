@@ -39,7 +39,7 @@ type Peer struct {
 	duplicated map[string]bool
 	pli        int // set PLI interval
 
-	logger loki.Log
+	logger loki.Log // init logger
 }
 
 // NewPeerConnection linter
@@ -57,7 +57,7 @@ func newPeerConnection(configs *Configs) *Peer {
 		config:      configs,
 		debug:       os.Getenv("DEBUG"),
 		duplicated:  make(map[string]bool),
-		logger:      configs.logger,
+		logger:      configs.Logger,
 	}
 
 	if configs.Bitrate == nil {

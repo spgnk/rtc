@@ -27,7 +27,7 @@ type Configs struct {
 
 	IsCreateDC bool
 
-	logger loki.Log
+	Logger loki.Log // init logger
 }
 
 // TrackConfig setting init track config

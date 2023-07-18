@@ -99,7 +99,7 @@ func (p *Peers) AddDCConnection(
 	}
 
 	// add new one
-	configs.logger = p.logger
+	configs.Logger = p.logger
 	peer := newPeerConnection(configs)
 
 	conn, err := peer.InitDC(handleOnDatachannel)
@@ -143,7 +143,7 @@ func (p *Peers) AddConnection(
 	}
 
 	// add new one
-	configs.logger = p.logger
+	configs.Logger = p.logger
 	peer := newPeerConnection(configs)
 
 	conn, err := peer.Init()
