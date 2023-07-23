@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/pion/webrtc/v3"
 	"github.com/spgnk/rtc/peer"
 	"github.com/spgnk/rtc/utils"
@@ -26,13 +25,13 @@ func (w *PeerWorker) countAllPeer() {
 				count := connections.CountAllPeer()
 				if count == 0 {
 					// something here
-					logs.Debug(fmt.Sprintf("==== %s has 0 connection. Check repeer or remove", signalID))
+					w.Warn(fmt.Sprintf("==== %s has 0 connection. Check repeer or remove", signalID))
 					if w.handleNoConnection != nil {
 						w.handleNoConnection(&signalID)
 					}
 				} else {
 					all += count
-					logs.Debug(fmt.Sprintf("==== %s has %d connections", signalID, count))
+					w.Warn(fmt.Sprintf("==== %s has %d connections", signalID, count))
 				}
 			}
 
@@ -40,15 +39,15 @@ func (w *PeerWorker) countAllPeer() {
 		})
 	}
 
-	logs.Warn("==== Total connections is: ", all)
+	w.Warn(fmt.Sprintf("==== Total connections is: %d", all))
 }
 
 func (w *PeerWorker) countInterVal() {
 	interval := utils.GetInterval()
-	logs.Warn(fmt.Sprintf("Count interval start with %d every second", interval))
+	w.Warn(fmt.Sprintf("Count interval start with %d every second", interval))
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 	for range ticker.C {
-		logs.Warn("====== Count peer interval ======")
+		w.Warn("====== Count peer interval ======")
 		w.countAllPeer()
 	}
 }
@@ -80,7 +79,7 @@ func (w *PeerWorker) closeConnections(signalID *string) {
 	}
 }
 
-func (w *PeerWorker) getPeer(signalID, peerConnectionID *string) peer.Connection {
+func (w *PeerWorker) getPeer(signalID, peerConnectionID *string) *peer.Peer {
 	if peers := w.getPeers(); peers != nil {
 		ps, has := peers.Get(*signalID)
 		if has {

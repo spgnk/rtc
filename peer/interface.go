@@ -78,15 +78,15 @@ type Connections interface {
 		handleFailedPeer func(signalID, role, peerConnectionID *string),
 		handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
 		handleOnNegotiationNeeded func(signalID, peerConnectionID, cookieID *string),
-	) (Connection, error)
+	) (*Peer, error)
 
 	RemoveConnection(
 		peerConnectionID *string,
 	)
 
-	GetAllConnection() []Connection
+	GetAllConnection() []*Peer
 	GetAllPeerConnectionID() []string
-	GetConnection(peerConnectionID *string) Connection
+	GetConnection(peerConnectionID *string) *Peer
 	GetStates(temp map[string]string)        // get all connection states
 	GetState(peerConnectionID string) string // get single connection state
 
@@ -101,5 +101,5 @@ type Connections interface {
 		handleAddDCPeer func(signalID, role, peerConnectionID *string),
 		handleFailedDCPeer func(signalID, role, peerConnectionID *string),
 		handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
-	) (Connection, error)
+	) (*Peer, error)
 }

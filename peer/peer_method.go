@@ -163,7 +163,7 @@ func (p *Peer) modifyBitrate(remoteTrack *webrtc.TrackRemote) {
 			}})
 
 			if errSend != nil {
-				p.Error("Modify bitrate write rtcp err: " + errSend.Error())
+				p.Error("Modify bitrate write rtcp err: "+errSend.Error(), nil)
 				return
 			}
 		}
@@ -194,7 +194,7 @@ func (p *Peer) pictureLossIndication(remoteTrack *webrtc.TrackRemote) {
 		})
 
 		if errSend != nil {
-			p.Error("Picture loss indication write rtcp err: " + errSend.Error())
+			p.Error("Picture loss indication write rtcp err: "+errSend.Error(), nil)
 			return
 		}
 	}
@@ -217,7 +217,7 @@ func (p *Peer) SendPictureLossIndication() {
 	})
 
 	if errSend != nil {
-		p.Error("Picture loss indication write rtcp err: " + errSend.Error())
+		p.Error("Picture loss indication write rtcp err: "+errSend.Error(), nil)
 		return
 	}
 }

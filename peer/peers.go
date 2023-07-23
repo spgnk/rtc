@@ -52,7 +52,7 @@ func (p *Peers) Close() {
 }
 
 // GetConnection get peer connection
-func (p *Peers) GetConnection(peerConnectionID *string) Connection {
+func (p *Peers) GetConnection(peerConnectionID *string) *Peer {
 	peer := p.getPeer(peerConnectionID)
 	if peer != nil {
 		return peer
@@ -91,7 +91,7 @@ func (p *Peers) AddDCConnection(
 	handleAddDCPeer func(signalID, role, peerConnectionID *string),
 	handleFailedDCPeer func(signalID, role, peerConnectionID *string),
 	handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
-) (Connection, error) {
+) (*Peer, error) {
 	// remove if exist
 	if peer := p.GetConnection(configs.PeerConnectionID); peer != nil {
 		p.RemoveConnection(configs.PeerConnectionID)
@@ -109,13 +109,13 @@ func (p *Peers) AddDCConnection(
 
 	conn.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		if candidate != nil && handleCandidate != nil {
-			handleCandidate(p.getSignalID(), configs.PeerConnectionID, candidate)
+			handleCandidate(p.signalID, configs.PeerConnectionID, candidate)
 		}
 	})
 
 	conn.OnICEConnectionStateChange(func(is webrtc.ICEConnectionState) {
 		p.handleICEConnectionState(
-			p.getSignalID(),
+			p.signalID,
 			configs.PeerConnectionID,
 			is.String(),
 			handleAddDCPeer,
@@ -135,7 +135,7 @@ func (p *Peers) AddConnection(
 	handleFailedPeer func(signalID, role, peerConnectionID *string),
 	handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
 	handleOnNegotiationNeeded func(signalID, peerConnectionID, cookieID *string),
-) (Connection, error) {
+) (*Peer, error) {
 	// remove if exist
 	if peer := p.GetConnection(configs.PeerConnectionID); peer != nil {
 		p.RemoveConnection(configs.PeerConnectionID)
@@ -164,13 +164,13 @@ func (p *Peers) AddConnection(
 		}
 
 		if handleOnTrack != nil {
-			handleOnTrack(p.getSignalID(), peer.GetPeerConnectionID(), t)
+			handleOnTrack(p.signalID, peer.GetPeerConnectionID(), t)
 		}
 	})
 
 	conn.OnICEConnectionStateChange(func(is webrtc.ICEConnectionState) {
 		p.handleICEConnectionState(
-			p.getSignalID(),
+			p.signalID,
 			configs.PeerConnectionID,
 			is.String(),
 			handleAddPeer,
@@ -180,7 +180,7 @@ func (p *Peers) AddConnection(
 
 	conn.OnICECandidate(func(candidate *webrtc.ICECandidate) {
 		if candidate != nil && handleCandidate != nil {
-			handleCandidate(p.getSignalID(), configs.PeerConnectionID, candidate)
+			handleCandidate(p.signalID, configs.PeerConnectionID, candidate)
 		}
 	})
 
@@ -220,7 +220,7 @@ func (p *Peers) AddSDP(peerConnectionID *string, value interface{}) error {
 }
 
 // GetAllConnection return all connection
-func (p *Peers) GetAllConnection() []Connection {
+func (p *Peers) GetAllConnection() []*Peer {
 	tmp, _ := p.getAllPeer()
 	return tmp
 }

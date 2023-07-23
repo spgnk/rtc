@@ -6,10 +6,10 @@ import (
 	"github.com/spgnk/rtc/utils"
 )
 
-func (p *Peers) getSignalID() *string {
+func (p *Peers) getSignalID() string {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
-	return p.signalID
+	return *p.signalID
 }
 
 func (p *Peers) setClosed(state bool) {
@@ -81,7 +81,7 @@ func (p *Peers) closePeer(peerConnectionID *string) {
 		// close peer
 		client.Close()
 
-		p.Info(fmt.Sprintf("%s_%s_%s peerConn was removed", *p.getSignalID(), *peerConnectionID, *client.getCookieID()))
+		p.Info(fmt.Sprintf("%s_%s peerConn was removed", *peerConnectionID, *client.getCookieID()))
 		client = nil
 	}
 }
@@ -143,13 +143,13 @@ func (p *Peers) removeConnections() {
 	}
 }
 
-func (p *Peers) getAllPeer() ([]Connection, []string) {
-	var conns []Connection
+func (p *Peers) getAllPeer() ([]*Peer, []string) {
+	var conns []*Peer
 	var ids []string
 
 	if ps := p.getPeers(); ps != nil {
 		ps.Iter(func(key, value interface{}) bool {
-			connection, ok1 := value.(Connection)
+			connection, ok1 := value.(*Peer)
 			if ok1 {
 				conns = append(conns, connection)
 			}

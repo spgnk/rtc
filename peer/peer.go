@@ -42,8 +42,10 @@ type Peer struct {
 	logger loki.Log // init logger
 }
 
+var _ (Connection) = (*Peer)(nil)
+
 // NewPeerConnection linter
-func NewPeerConnection(configs *Configs) Connection {
+func NewPeerConnection(configs *Configs) *Peer {
 	return newPeerConnection(configs)
 }
 
@@ -95,12 +97,25 @@ func (p *Peer) InitDC(
 	if !p.config.IsCreateDC {
 		// Register data channel creation handling
 		peerConnection.OnDataChannel(func(d *webrtc.DataChannel) {
-			p.Info(fmt.Sprintf("New DataChannel %s %d\n", d.Label(), d.ID()))
-			p.Warn("receive DC, handle open")
+			p.Warn(
+				fmt.Sprintf("New Data channel %s open.\n", d.Label()),
+				map[string]any{
+					"data_channel": d.ID(),
+				})
+
+			p.Warn(
+				"receive DC, handle open",
+				map[string]any{
+					"data_channel": d.ID(),
+				})
 
 			// Register channel opening handling
 			d.OnOpen(func() {
-				p.Warn(fmt.Sprintf("Data channel '%s'-'%d' open.\n", d.Label(), d.ID()))
+				p.Warn(
+					fmt.Sprintf("Data channel %s open.\n", d.Label()),
+					map[string]any{
+						"data_channel": d.ID(),
+					})
 				handleOnDatachannel(p.GetPeerConnectionID(), d)
 
 				// Detach the data channel
@@ -127,14 +142,18 @@ func (p *Peer) InitDC(
 		// Ordered:        &ordered,
 		// MaxRetransmits: &maxRetransmits,
 		// }
-		dataChannel, err := peerConnection.CreateDataChannel("haideptrai", nil)
+		dataChannel, err := peerConnection.CreateDataChannel("datachannel", nil)
 		if err != nil {
 			return nil, err
 		}
 
 		// Register channel opening handling
 		dataChannel.OnOpen(func() {
-			p.Warn(fmt.Sprintf("Data channel '%s'-'%d' open.\n", dataChannel.Label(), dataChannel.ID()))
+			p.Warn(
+				fmt.Sprintf("Data channel %s open.\n", dataChannel.Label()),
+				map[string]any{
+					"data_channel": dataChannel.ID(),
+				})
 			handleOnDatachannel(p.GetPeerConnectionID(), dataChannel)
 
 			// Detach the data channel
@@ -184,9 +203,9 @@ func (p *Peer) Close() {
 		p.setClose(true)
 		p.setBitrate(nil)
 		if err := p.closeConn(); err != nil {
-			p.Error(err.Error())
+			p.Error(err.Error(), nil)
 		}
-		// logs.Warn(fmt.Sprintf("%s_%s conn was closed", p.getPeerConnectionID(), p.getCookieID()))
+		p.Info("rtc conn was closed", nil)
 	}
 }
 
@@ -321,7 +340,7 @@ func (p *Peer) AddICECandidate(icecandidate interface{}) error {
 
 	if conn.RemoteDescription() == nil {
 		p.addIceCache(candidateInit)
-		p.Info(fmt.Sprintf("%s Add candidate to cache because remote is nil or peer states is %v", *p.GetPeerConnectionID(), p.IsConnected()))
+		p.Info(fmt.Sprintf("Add candidate to cache because remote is nil or peer states is %v", p.IsConnected()), nil)
 		return nil
 	}
 

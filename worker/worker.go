@@ -81,6 +81,8 @@ func (u *UpPeer) GetAudioArr() []string {
 	return temp
 }
 
+var _ (Worker) = (*PeerWorker)(nil)
+
 // PeerWorker Set
 type PeerWorker struct {
 	id                  *string
@@ -138,7 +140,7 @@ func (w *PeerWorker) AddConnections(signalID *string) {
 }
 
 // GetConnection couble be nil if not exist
-func (w *PeerWorker) GetConnection(signalID, peerConnectionID *string) (peer.Connection, error) {
+func (w *PeerWorker) GetConnection(signalID, peerConnectionID *string) (*peer.Peer, error) {
 	conns := w.getConnections(signalID)
 	if conns == nil {
 		return nil, fmt.Errorf("%s %s", *signalID, errs.ErrW001.Error())
@@ -169,7 +171,9 @@ func (w *PeerWorker) RemoveConnection(signalID, peerConnectionID, cookieID *stri
 		if *conn.GetCookieID() == *cookieID {
 			connections.RemoveConnection(peerConnectionID)
 		} else {
-			w.Error(fmt.Sprintf("%s_%s input cookieID != peer cookieID (%s_%s). Dont remove", *signalID, *peerConnectionID, *cookieID, *conn.GetCookieID()))
+			conn.Error(fmt.Sprintf("input cookieID != peer cookieID (%s_%s). Dont remove", *cookieID, *conn.GetCookieID()), map[string]any{
+				"signal_id": *signalID,
+			})
 		}
 	}
 
@@ -184,7 +188,7 @@ func (w *PeerWorker) AddDCConnection(
 	handleAddDCPeer func(signalID, role, peerConnectionID *string),
 	handleFailedDCPeer func(signalID, role, peerConnectionID *string),
 	handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
-) (peer.Connection, error) {
+) (*peer.Peer, error) {
 	// get connections
 	connections := w.getConnections(signalID)
 	if connections == nil {
@@ -212,7 +216,7 @@ func (w *PeerWorker) AddConnection(
 	handleFailedPeer func(signalID, role, peerConnectionID *string),
 	handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
 	handleOnNegotiationNeeded func(signalID, peerConnectionID, cookieID *string),
-) (peer.Connection, error) {
+) (*peer.Peer, error) {
 	// get connections
 	connections := w.getConnections(signalID)
 	if connections == nil {

@@ -27,8 +27,11 @@ func (p *Peers) handleICEConnectionState(
 	if peer == nil || state == "" {
 		return
 	}
-
-	p.Warn(fmt.Sprintf("%s_%s_%s current ICE states: %s", *signalID, *peerConnectionID, *peer.getCookieID(), state))
+	peer.Info(
+		fmt.Sprintf("%s_%s current ICE states: %s", *signalID, *peer.getCookieID(), state),
+		map[string]any{
+			"signal_id": p.getSignalID(),
+		})
 	p.setState(peerConnectionID, &state)
 
 	switch state {
@@ -53,7 +56,9 @@ func (p *Peers) handleICEConnectionState(
 		// }))
 		p.checkFailedState(peer.GetPeerConnectionID(), peer.getCookieID(), handleFailedPeer)
 	case utils.Closed:
-		p.Info(fmt.Sprintf("%s_%s_%s ICE state is %s", *signalID, *peer.GetPeerConnectionID(), *peer.getCookieID(), state))
+		peer.Info(fmt.Sprintf("rtcn ICE state is %s", state), map[string]any{
+			"signal_id": p.getSignalID(),
+		})
 	default:
 		return
 	}
@@ -71,9 +76,9 @@ func (p *Peers) checkFailedState(
 	if (state == "failed" || state == "disconnected" || state == "closed") && *peerConnectionID == *peer.GetPeerConnectionID() && *cookieID == *peer.GetCookieID() {
 		p.Error(errs.ErrP004.Error())
 		p.RemoveConnection(peerConnectionID)
-		p.Warn(fmt.Sprintf("Remove old peerConn (%s_%s_%s) has state %s", *p.getSignalID(), *peerConnectionID, *peer.GetCookieID(), state))
+		p.Warn(fmt.Sprintf("Remove old peerConn (%s_%s_%s) has state %s", p.getSignalID(), *peerConnectionID, *peer.GetCookieID(), state))
 		if handleFailedPeer != nil {
-			handleFailedPeer(p.getSignalID(), peer.GetRole(), peer.GetPeerConnectionID())
+			handleFailedPeer(p.signalID, peer.GetRole(), peer.GetPeerConnectionID())
 		}
 	}
 }

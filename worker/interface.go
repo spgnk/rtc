@@ -16,7 +16,7 @@ type Worker interface {
 		handleAddDCPeer func(signalID, role, peerConnectionID *string),
 		handleFailedDCPeer func(signalID, role, peerConnectionID *string),
 		handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
-	) (peer.Connection, error)
+	) (*peer.Peer, error)
 
 	AddConnection(
 		signalID *string,
@@ -25,13 +25,13 @@ type Worker interface {
 		handleFailedPeer func(signalID, role, peerConnectionID *string),
 		handleCandidate func(signalID, peerConnectionID *string, candidate *webrtc.ICECandidate),
 		handleOnNegotiationNeeded func(signalID, peerConnectionID, cookieID *string),
-	) (peer.Connection, error)
+	) (*peer.Peer, error)
 	GetAllConnectionID() map[string][]string
 	GetStates() map[string]string
 
 	AddConnections(signalID *string)
 	GetConnections(signalID *string) peer.Connections
-	GetConnection(signalID, peerConnectionID *string) (peer.Connection, error)
+	GetConnection(signalID, peerConnectionID *string) (*peer.Peer, error)
 	RemoveConnection(signalID, peerConnectionID, cookieID *string) error
 	RemoveConnections(signalID *string)
 
