@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lamhai1401/gologs/loki"
 	"github.com/pion/webrtc/v3"
 	"github.com/spgnk/rtc/utils"
 )
@@ -27,7 +26,7 @@ type Configs struct {
 
 	IsCreateDC bool
 
-	Logger loki.Log // init logger
+	// Logger int // init logger
 }
 
 // TrackConfig setting init track config

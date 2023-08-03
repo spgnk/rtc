@@ -25,13 +25,13 @@ func (w *PeerWorker) countAllPeer() {
 				count := connections.CountAllPeer()
 				if count == 0 {
 					// something here
-					w.Warn(fmt.Sprintf("==== %s has 0 connection. Check repeer or remove", signalID))
+					w.logger.WARN(fmt.Sprintf("==== %s has 0 connection. Check repeer or remove", signalID), nil)
 					if w.handleNoConnection != nil {
 						w.handleNoConnection(&signalID)
 					}
 				} else {
 					all += count
-					w.Warn(fmt.Sprintf("==== %s has %d connections", signalID, count))
+					w.logger.WARN(fmt.Sprintf("==== %s has %d connections", signalID, count), nil)
 				}
 			}
 
@@ -39,15 +39,15 @@ func (w *PeerWorker) countAllPeer() {
 		})
 	}
 
-	w.Warn(fmt.Sprintf("==== Total connections is: %d", all))
+	w.logger.WARN(fmt.Sprintf("==== Total connections is: %d", all), nil)
 }
 
 func (w *PeerWorker) countInterVal() {
 	interval := utils.GetInterval()
-	w.Warn(fmt.Sprintf("Count interval start with %d every second", interval))
+	w.logger.WARN(fmt.Sprintf("Count interval start with %d every second", interval), nil)
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 	for range ticker.C {
-		w.Warn("====== Count peer interval ======")
+		w.logger.WARN("====== Count peer interval ======", nil)
 		w.countAllPeer()
 	}
 }

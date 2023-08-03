@@ -74,9 +74,9 @@ func (p *Peers) checkFailedState(
 		return
 	}
 	if (state == "failed" || state == "disconnected" || state == "closed") && *peerConnectionID == *peer.GetPeerConnectionID() && *cookieID == *peer.GetCookieID() {
-		p.Error(errs.ErrP004.Error())
+		p.logger.ERROR(errs.ErrP004.Error(), nil)
 		p.RemoveConnection(peerConnectionID)
-		p.Warn(fmt.Sprintf("Remove old peerConn (%s_%s_%s) has state %s", p.getSignalID(), *peerConnectionID, *peer.GetCookieID(), state))
+		p.logger.WARN(fmt.Sprintf("Remove old peerConn (%s_%s_%s) has state %s", p.getSignalID(), *peerConnectionID, *peer.GetCookieID(), state), nil)
 		if handleFailedPeer != nil {
 			handleFailedPeer(p.signalID, peer.GetRole(), peer.GetPeerConnectionID())
 		}

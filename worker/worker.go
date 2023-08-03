@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lamhai1401/gologs/loki"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 	"github.com/spgnk/rtc/errs"
@@ -85,7 +84,7 @@ var _ (Worker) = (*PeerWorker)(nil)
 
 // PeerWorker Set
 type PeerWorker struct {
-	id                  *string
+	nodeID              *string                        // node id
 	audioFwdm           utils.Fwdm                     // forward audio pkg
 	videoFwdm           utils.Fwdm                     // forward video pkg
 	peers               *utils.AdvanceMap              // save all peers with signalID
@@ -95,24 +94,27 @@ type PeerWorker struct {
 	trackMeta           map[string]bool // save track meta for detach
 	readDeadlineHandler func(pcID, trackID *string, codec, kind string)
 	mutex               sync.RWMutex
-	logger              loki.Log
+	logger              utils.Log
 }
 
 // NewPeerWorker linter
 func NewPeerWorker(
-	id *string,
+	nodeID *string,
 	upList map[string]*UpPeer,
-	logger loki.Log,
+	logger utils.Log,
 ) Worker {
 	w := &PeerWorker{
-		id:        id,
-		audioFwdm: utils.NewForwarderMannager(*id),
-		videoFwdm: utils.NewForwarderMannager(*id),
+		nodeID:    nodeID,
+		audioFwdm: utils.NewForwarderMannager(*nodeID),
+		videoFwdm: utils.NewForwarderMannager(*nodeID),
 		peers:     utils.NewAdvanceMap(),
 		tracks:    make(map[string]*webrtc.TrackRemote),
 		trackMeta: make(map[string]bool),
 		upList:    upList,
-		logger:    logger,
+		logger: &workerLog{
+			id:     *nodeID,
+			logger: logger,
+		},
 	}
 
 	return w
@@ -258,17 +260,17 @@ func (w *PeerWorker) AddAudioFwd(trackID *string) {
 func (w *PeerWorker) UnRegister(peerConnectionID *string) {
 	// if fwdm := w.getVideoFwdm(); fwdm != nil {
 	// 	fwdm.UnregisterAll(*peerConnectionID)
-	// 	w.Warn(fmt.Sprintf("%s unRegister all VideoFwdm", *peerConnectionID))
+	// 	w.logger.WARN(fmt.Sprintf("%s unRegister all VideoFwdm", *peerConnectionID))
 	// }
 
 	w.videoFwdm.UnregisterAll(*peerConnectionID)
-	w.Warn(fmt.Sprintf("%s unRegister all VideoFwdm", *peerConnectionID))
+	w.logger.WARN(fmt.Sprintf("%s unRegister all VideoFwdm", *peerConnectionID), nil)
 
 	w.audioFwdm.UnregisterAll(*peerConnectionID)
-	w.Warn(fmt.Sprintf("%s unRegister all AudioFwdm", *peerConnectionID))
+	w.logger.WARN(fmt.Sprintf("%s unRegister all AudioFwdm", *peerConnectionID), nil)
 	// if fwdm := w.getAudioFwdm(); fwdm != nil {
 	// 	fwdm.UnregisterAll(*peerConnectionID)
-	// 	w.Warn(fmt.Sprintf("%s unRegister all AudioFwdm", *peerConnectionID))
+	// 	w.logger.WARN(fmt.Sprintf("%s unRegister all AudioFwdm", *peerConnectionID))
 	// }
 }
 
@@ -279,11 +281,11 @@ func (w *PeerWorker) UnRegisterVideo(peerConnectionID, videoTrackID *string) {
 		// fwdm := w.getVideoFwdm()
 		// if fwdm != nil {
 		// 	fwdm.Unregister(videoTrackID, peerConnectionID)
-		// 	w.Warn(fmt.Sprintf("%s unRegister (%s) of VideoFwdm", *peerConnectionID, *videoTrackID))
+		// 	w.logger.WARN(fmt.Sprintf("%s unRegister (%s) of VideoFwdm", *peerConnectionID, *videoTrackID))
 		// }
 
 		w.videoFwdm.Unregister(videoTrackID, peerConnectionID)
-		w.Warn(fmt.Sprintf("%s unRegister (%s) of VideoFwdm", *peerConnectionID, *videoTrackID))
+		w.logger.WARN(fmt.Sprintf("%s unRegister (%s) of VideoFwdm", *peerConnectionID, *videoTrackID), nil)
 	}
 
 }
@@ -294,10 +296,10 @@ func (w *PeerWorker) UnRegisterAudio(peerConnectionID, audioTrackID *string) {
 		// fwdm := w.getAudioFwdm()
 		// if fwdm != nil {
 		// 	fwdm.Unregister(audioTrackID, peerConnectionID)
-		// 	w.Warn(fmt.Sprintf("%s unRegister (%s) in AudioFwdm", *peerConnectionID, *audioTrackID))
+		// 	w.logger.WARN(fmt.Sprintf("%s unRegister (%s) in AudioFwdm", *peerConnectionID, *audioTrackID))
 		// }
 		w.audioFwdm.Unregister(audioTrackID, peerConnectionID)
-		w.Warn(fmt.Sprintf("%s unRegister (%s) in AudioFwdm", *peerConnectionID, *audioTrackID))
+		w.logger.WARN(fmt.Sprintf("%s unRegister (%s) in AudioFwdm", *peerConnectionID, *audioTrackID), nil)
 	}
 }
 
@@ -499,11 +501,11 @@ func (w *PeerWorker) handleOnTrack(signalID, peerConnectionID *string, remoteTra
 	trackID, err := w.findTrackID(peerConnectionID, &kind)
 	codec := remoteTrack.Codec().MimeType
 	if err != nil {
-		w.Warn(err.Error() + " so use remoteTrackID")
+		w.logger.WARN(err.Error()+" so use remoteTrackID", nil)
 		trackID = remoteTrack.ID()
 	}
 
-	w.Info(fmt.Sprintf("(%s_%s) Has remote track of id %s_%s", trackID, codec, *signalID, *peerConnectionID))
+	w.logger.INFO(fmt.Sprintf("(%s_%s) Has remote track of id %s_%s", trackID, codec, *signalID, *peerConnectionID), nil)
 
 	var fwdm utils.Fwdm
 	switch kind {
@@ -567,7 +569,7 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 		if err != nil {
 			// if err == os.ErrDeadlineExceeded || strings.Contains(err.Error(), os.ErrDeadlineExceeded.Error()) {
 			// 	// signal to worker
-			// 	w.Warn(fmt.Sprintf("%s_%s readDeadline exceeded.", *peerConnectionID, *trackID))
+			// 	w.logger.WARN(fmt.Sprintf("%s_%s readDeadline exceeded.", *peerConnectionID, *trackID))
 			// 	w.readDeadlineHandler(peerConnectionID, trackID, codec, *kind)
 			// }
 			return
@@ -598,7 +600,7 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 				// Pkg: pkg,
 				Data: (*b)[:i],
 			})
-			w.Stack(fmt.Sprintf("%s_%s Push rtp pkg to fwd %s", *peerConnectionID, codec, *trackID))
+			w.logger.STACK(fmt.Sprintf("%s_%s Push rtp pkg to fwd %s", *peerConnectionID, codec, *trackID))
 		}
 
 		*b = make([]byte, 1460)

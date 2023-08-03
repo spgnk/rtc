@@ -1,17 +1,48 @@
 package worker
 
-func (w *PeerWorker) Error(v string) {
-	w.logger.ERROR(v, map[string]any{"worker_id": w.id})
+import "github.com/spgnk/rtc/utils"
+
+type workerLog struct {
+	id     string
+	logger utils.Log
 }
 
-func (w *PeerWorker) Info(v string) {
-	w.logger.INFO(v, map[string]any{"worker_id": w.id})
+func (w *workerLog) ERROR(v string, tags map[string]any) {
+	if tags == nil {
+		tags = make(map[string]any)
+	}
+	tags["node_id"] = w.id
+	tags["status"] = "error"
+	w.logger.ERROR(v, tags)
 }
 
-func (w *PeerWorker) Stack(v ...string) {
+func (w *workerLog) INFO(v string, tags map[string]any) {
+	if tags == nil {
+		tags = make(map[string]any)
+	}
+	tags["node_id"] = w.id
+	tags["status"] = "info"
+	w.logger.INFO(v, tags)
+}
+
+func (w *workerLog) STACK(v ...string) {
 	w.logger.STACK(v...)
 }
 
-func (w *PeerWorker) Warn(v string) {
-	w.logger.WARN(v, map[string]any{"worker_id": w.id})
+func (w *workerLog) WARN(v string, tags map[string]any) {
+	if tags == nil {
+		tags = make(map[string]any)
+	}
+	tags["node_id"] = w.id
+	tags["status"] = "warn"
+	w.logger.WARN(v, tags)
+}
+
+func (w *workerLog) DEBUG(v string, tags map[string]any) {
+	if tags == nil {
+		tags = make(map[string]any)
+	}
+	tags["node_id"] = w.id
+	tags["status"] = "debug"
+	w.logger.DEBUG(v, tags)
 }

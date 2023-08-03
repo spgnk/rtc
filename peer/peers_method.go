@@ -81,7 +81,7 @@ func (p *Peers) closePeer(peerConnectionID *string) {
 		// close peer
 		client.Close()
 
-		p.Info(fmt.Sprintf("%s_%s peerConn was removed", *peerConnectionID, *client.getCookieID()))
+		p.logger.INFO(fmt.Sprintf("%s_%s peerConn was removed", *peerConnectionID, *client.getCookieID()), nil)
 		client = nil
 	}
 }

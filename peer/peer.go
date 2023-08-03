@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/lamhai1401/gologs/loki"
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 
@@ -39,7 +38,7 @@ type Peer struct {
 	duplicated map[string]bool
 	pli        int // set PLI interval
 
-	logger loki.Log // init logger
+	logger utils.Log // init logger
 }
 
 var _ (Connection) = (*Peer)(nil)
@@ -59,7 +58,6 @@ func newPeerConnection(configs *Configs) *Peer {
 		config:      configs,
 		debug:       os.Getenv("DEBUG"),
 		duplicated:  make(map[string]bool),
-		logger:      configs.Logger,
 	}
 
 	if configs.Bitrate == nil {

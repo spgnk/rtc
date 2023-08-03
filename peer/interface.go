@@ -4,6 +4,7 @@ import (
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
+	"github.com/spgnk/rtc/utils"
 )
 
 // Connection linter
@@ -66,6 +67,9 @@ type Connection interface {
 
 	// SetPliInterval linter
 	SetPliInterval(int)
+
+	// init logger
+	SetLogger(log utils.Log)
 }
 
 // Connections linter

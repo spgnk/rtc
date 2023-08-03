@@ -265,3 +265,7 @@ func (p *Peer) AddDuplicated(t string, element bool) {
 		}
 	}()
 }
+
+func (p *Peer) SetLogger(log utils.Log) {
+	p.logger = log
+}

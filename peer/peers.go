@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/lamhai1401/gologs/loki"
+	// "github.com/lamhai1401/gologs/loki"
+
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 
@@ -22,13 +23,13 @@ type Peers struct {
 	headers   map[string]*rtp.Header // save data header with for data header
 	isClosed  bool
 	mutex     sync.RWMutex
-	logger    loki.Log
+	logger    utils.Log
 }
 
 // NewPeers mutilpe peer controller
 func NewPeers(
 	signalID *string, // client signal ID
-	logger loki.Log,
+	logger utils.Log,
 ) Connections {
 	ps := &Peers{
 		signalID: signalID,
@@ -95,12 +96,12 @@ func (p *Peers) AddDCConnection(
 	// remove if exist
 	if peer := p.GetConnection(configs.PeerConnectionID); peer != nil {
 		p.RemoveConnection(configs.PeerConnectionID)
-		p.Info(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID))
+		p.logger.INFO(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID), nil)
 	}
 
 	// add new one
-	configs.Logger = p.logger
 	peer := newPeerConnection(configs)
+	peer.SetLogger(p.logger)
 
 	conn, err := peer.InitDC(handleOnDatachannel)
 	if err != nil {
@@ -139,12 +140,12 @@ func (p *Peers) AddConnection(
 	// remove if exist
 	if peer := p.GetConnection(configs.PeerConnectionID); peer != nil {
 		p.RemoveConnection(configs.PeerConnectionID)
-		p.Info(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID))
+		p.logger.INFO(fmt.Sprintf("%s remove existed peerConn", *configs.PeerConnectionID), nil)
 	}
 
 	// add new one
-	configs.Logger = p.logger
 	peer := newPeerConnection(configs)
+	peer.SetLogger(p.logger)
 
 	conn, err := peer.Init()
 	if err != nil {
@@ -156,7 +157,7 @@ func (p *Peers) AddConnection(
 		// find trackId in stream ọbject
 		memDestCanPush := (kind == "video" && peer.config.AllowUpVideo) || (kind == "audio" && peer.config.AllowUpAudio)
 		if !memDestCanPush {
-			p.Warn(fmt.Sprintf("%s is not allow to up %s. No need to read RTP", *peer.GetPeerConnectionID(), kind))
+			p.logger.WARN(fmt.Sprintf("%s is not allow to up %s. No need to read RTP", *peer.GetPeerConnectionID(), kind), nil)
 			return
 		}
 		if kind == "video" {
