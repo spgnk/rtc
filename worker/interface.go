@@ -39,8 +39,8 @@ type Worker interface {
 	UnRegisterVideo(peerConnectionID, trackID *string)
 	UnRegisterAudio(peerConnectionID, trackID *string)
 
-	AddVideoFwd(trackID *string)
-	AddAudioFwd(trackID *string)
+	AddVideoFwd(trackID, codec string)
+	AddAudioFwd(trackID, codec string)
 
 	// add the method add register, the given trackID could be null if register all
 	Register(

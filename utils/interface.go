@@ -6,7 +6,7 @@ type Fwdm interface {
 	// RegisterAll(clientID string, handler func(trackID string, wrapper *Wrapper) error)
 	Register(fwdID string, clientID string, handler func(trackID string, wrapper *Wrapper) error)
 	Unregister(trackID, pcID *string)
-	AddNewForwarder(id string) *Forwarder
+	AddNewForwarder(id, codec string) *Forwarder
 	RemoveForwarder(id string)
 	GetForwarder(id string) *Forwarder
 	Push(id string, wrapper *Wrapper)

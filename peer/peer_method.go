@@ -210,10 +210,10 @@ func (p *Peer) SendPictureLossIndication() {
 	if conn == nil {
 		return
 	}
+	// Vòng lặp liên tục để xử lý RTCP và PLI
+
 	errSend := conn.WriteRTCP([]rtcp.Packet{
 		&rtcp.PictureLossIndication{MediaSSRC: uint32(remoteTrack.SSRC())},
-		// &rtcp.SliceLossIndication{MediaSSRC: uint32(remoteTrack.SSRC())},
-		// &rtcp.RapidResynchronizationRequest{SenderSSRC: uint32(remoteTrack.SSRC()), MediaSSRC: uint32(remoteTrack.SSRC())},
 	})
 
 	if errSend != nil {

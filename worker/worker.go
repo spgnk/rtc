@@ -241,19 +241,19 @@ func (w *PeerWorker) AddConnection(
 }
 
 // AddVideoFwd to add new video fwd
-func (w *PeerWorker) AddVideoFwd(trackID *string) {
+func (w *PeerWorker) AddVideoFwd(trackID string, codec string) {
 	// if fwdm := w.getVideoFwdm(); fwdm != nil {
 	// 	fwdm.AddNewForwarder(*trackID)
 	// }
-	w.videoFwdm.AddNewForwarder(*trackID)
+	w.videoFwdm.AddNewForwarder(trackID, codec)
 }
 
 // AddAudioFwd to add new video fwd
-func (w *PeerWorker) AddAudioFwd(trackID *string) {
+func (w *PeerWorker) AddAudioFwd(trackID, codec string) {
 	// if fwdm := w.getAudioFwdm(); fwdm != nil {
 	// 	fwdm.AddNewForwarder(*trackID)
 	// }
-	w.audioFwdm.AddNewForwarder(*trackID)
+	w.audioFwdm.AddNewForwarder(trackID, codec)
 }
 
 // UnRegister all video and audio
@@ -591,7 +591,7 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 		// push video to fwd
 		fwd := fwdm.GetForwarder(*trackID)
 		if fwd == nil {
-			fwd = fwdm.AddNewForwarder(*trackID)
+			fwd = fwdm.AddNewForwarder(*trackID, codec)
 		}
 
 		// pushing data to fwd

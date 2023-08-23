@@ -23,6 +23,7 @@ type FwdmAction struct {
 	Action
 	result chan *Forwarder // return fwd if exist
 	pcID   *string
+	codec  string
 }
 
 // ForwarderMannager control all forwadrder manager
@@ -117,10 +118,11 @@ func (f *ForwarderMannager) GetForwarder(id string) *Forwarder {
 }
 
 // AddNewForwarder linter
-func (f *ForwarderMannager) AddNewForwarder(fwdID string) *Forwarder {
+func (f *ForwarderMannager) AddNewForwarder(fwdID, codec string) *Forwarder {
 	result := make(chan *Forwarder, 1)
 	newAction := &FwdmAction{
 		result: result,
+		codec:  codec,
 	}
 	newAction.do = add
 	newAction.id = &fwdID
@@ -186,7 +188,7 @@ func (f *ForwarderMannager) Register(trackID string, clientID string, handler fu
 func (f *ForwarderMannager) choosing(action *FwdmAction) {
 	switch action.do {
 	case add:
-		go f.addNewForwarder(action.id, action.result)
+		go f.addNewForwarder(action.id, action.codec, action.result)
 	// case closing:
 	// go f.closeForwarder(action.id)
 	case hub:
@@ -200,13 +202,13 @@ func (f *ForwarderMannager) choosing(action *FwdmAction) {
 	}
 }
 
-func (f *ForwarderMannager) addNewForwarder(fwdID *string, result chan *Forwarder) {
+func (f *ForwarderMannager) addNewForwarder(fwdID *string, codec string, result chan *Forwarder) {
 	if oldFwd := f.getForwarder(fwdID); oldFwd != nil {
 		result <- oldFwd
 		return
 	}
 	// create new
-	newForwader := NewForwarder(*fwdID, f.dataTimeChann)
+	newForwader := NewForwarder(*fwdID, codec, f.dataTimeChann)
 	f.setForwarder(fwdID, newForwader)
 	logs.Info(fmt.Sprintf("Add New %s forwarder successful", *fwdID))
 	result <- newForwader
@@ -247,7 +249,7 @@ func (f *ForwarderMannager) register(action *FwdmAction) {
 	}
 	forwardfer := f.getForwarder(action.id)
 	if forwardfer == nil {
-		forwardfer = f.AddNewForwarder(*action.id) // TODO check maybe stuck here
+		forwardfer = f.AddNewForwarder(*action.id, action.codec) // TODO check maybe stuck here
 	}
 	forwardfer.Register(action.pcID, action.client.handler)
 }
