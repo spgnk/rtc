@@ -3,6 +3,7 @@ module github.com/spgnk/rtc
 go 1.20
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/lamhai1401/gologs v0.0.13
 	github.com/lamhai1401/sdpParser v0.0.1
 	github.com/mitchellh/mapstructure v1.5.0
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/pion/datachannel v1.5.5 // indirect
 	github.com/pion/dtls/v2 v2.2.7 // indirect

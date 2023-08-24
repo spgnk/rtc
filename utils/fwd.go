@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/lamhai1401/gologs/logs"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
@@ -347,12 +348,13 @@ func (f *Forwarder) handleVP8(data *rtp.Packet) error {
 
 func (f *Forwarder) handleVP9(data *rtp.Packet) error {
 	vp8Packet := &codecs.VP9Packet{}
-	raw, err := vp8Packet.Unmarshal(data.Payload)
+	_, err := vp8Packet.Unmarshal(data.Payload)
 	if err != nil {
 		return err
 	}
 
-	if IsVP9Keyframe(raw) {
+	if !vp8Packet.P {
+		spew.Dump(vp8Packet)
 		f.setKeyFrame(data)
 		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
 	}
