@@ -131,7 +131,6 @@ func (f *Forwarder) dispatch() {
 			temp := make([]byte, len(msg.Data))
 			copy(temp, msg.Data)
 			f.keyframeChann <- temp
-
 			f.forward(msg)
 			// go f.setLastReceiveData(time.Now().UnixMilli())
 			f.dataTimeChann <- &ClientDataTime{
