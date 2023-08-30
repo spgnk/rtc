@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lamhai1401/gologs/logs"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
@@ -129,9 +128,9 @@ func (f *Forwarder) dispatch() {
 				return
 			}
 
-			temp := make([]byte, len(msg.Data)) // add here to detect key frame
-			copy(msg.Data, temp)
-			f.handleKeyFrame(temp)
+			temp := make([]byte, len(msg.Data))
+			copy(temp, msg.Data)
+			f.keyframeChann <- temp
 
 			f.forward(msg)
 			// go f.setLastReceiveData(time.Now().UnixMilli())
@@ -281,10 +280,6 @@ func (f *Forwarder) collectData(clientID *string, c *Client) {
 	}
 }
 
-func (f *Forwarder) handleKeyFrame(data []byte) {
-	f.keyframeChann <- data
-}
-
 func (f *Forwarder) setKeyFrame(data *rtp.Packet) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
@@ -304,9 +299,8 @@ func (f *Forwarder) serveKeyFrame() {
 		if !open {
 			return
 		}
-
 		// get rtp pkg
-		pkg := rtp.Packet{}
+		pkg := new(rtp.Packet)
 		err := pkg.Unmarshal(data)
 		if err != nil {
 			f.info(fmt.Sprintf("Unmarshal keyframe err: %v", err.Error()))
@@ -315,12 +309,15 @@ func (f *Forwarder) serveKeyFrame() {
 
 		// parsing codec pkg
 		switch f.codec {
-		case MimeTypeVP8:
-			err = f.handleVP8(&pkg)
+		// case MimeTypeVP8:
+		// 	err = f.handleVP8(&pkg)
 		case MimeTypeVP9:
-			err = f.handleVP9(&pkg)
-		case MimeTypeH264:
-			err = f.handleH264(&pkg)
+			if IsVP9Keyframe(pkg.Payload) {
+				fmt.Println("Set key frame")
+				f.setKeyFrame(pkg)
+			}
+		// case MimeTypeH264:
+		// err = f.handleH264(&pkg)
 		default:
 			continue
 		}
@@ -340,21 +337,6 @@ func (f *Forwarder) handleVP8(data *rtp.Packet) error {
 	}
 
 	if IsVP8Keyframe(raw) {
-		f.setKeyFrame(data)
-		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
-	}
-	return nil
-}
-
-func (f *Forwarder) handleVP9(data *rtp.Packet) error {
-	vp8Packet := &codecs.VP9Packet{}
-	_, err := vp8Packet.Unmarshal(data.Payload)
-	if err != nil {
-		return err
-	}
-
-	if !vp8Packet.P {
-		spew.Dump(vp8Packet)
 		f.setKeyFrame(data)
 		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
 	}
