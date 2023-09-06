@@ -8,7 +8,6 @@ import (
 
 	"github.com/lamhai1401/gologs/logs"
 	"github.com/pion/rtp"
-	"github.com/pion/rtp/codecs"
 )
 
 var wrapPool = sync.Pool{New: func() interface{} {
@@ -63,8 +62,8 @@ type Forwarder struct {
 	cancelFunc    context.CancelFunc
 	dataTimeChann chan *ClientDataTime
 	mutex         sync.RWMutex
-	keyframe      *rtp.Packet // save to keyframe
-	keyframeChann chan []byte
+	keyframe      *Wrapper // save to keyframe
+	keyframeChann chan *Wrapper
 	codec         string // vp8/vp9/h264
 }
 
@@ -76,8 +75,8 @@ func NewForwarder(id string, codec string, dataTimeChann chan *ClientDataTime) *
 		hub:           make(chan *Wrapper, maxChanSize),
 		msgChann:      make(chan *Action, maxChanSize),
 		clients:       make(map[string]*Client),
-		keyframe:      &rtp.Packet{},
-		keyframeChann: make(chan []byte, maxChanSize),
+		keyframe:      nil,
+		keyframeChann: make(chan *Wrapper, maxChanSize),
 		isClosed:      false,
 		ctx:           ctx,
 		cancelFunc:    cancel,
@@ -128,9 +127,7 @@ func (f *Forwarder) dispatch() {
 				return
 			}
 
-			temp := make([]byte, len(msg.Data))
-			copy(temp, msg.Data)
-			f.keyframeChann <- temp
+			f.keyframeChann <- msg
 			f.forward(msg)
 			// go f.setLastReceiveData(time.Now().UnixMilli())
 			f.dataTimeChann <- &ClientDataTime{
@@ -279,14 +276,14 @@ func (f *Forwarder) collectData(clientID *string, c *Client) {
 	}
 }
 
-func (f *Forwarder) setKeyFrame(data *rtp.Packet) {
+func (f *Forwarder) setKeyFrame(data *Wrapper) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	f.keyframe = data
 }
 
 // GetKeyFrame get key frame foreach fwd
-func (f *Forwarder) GetKeyFrame() *rtp.Packet {
+func (f *Forwarder) GetKeyFrame() *Wrapper {
 	f.mutex.RLock()
 	defer f.mutex.RUnlock()
 	return f.keyframe
@@ -294,13 +291,13 @@ func (f *Forwarder) GetKeyFrame() *rtp.Packet {
 
 func (f *Forwarder) serveKeyFrame() {
 	for {
-		data, open := <-f.keyframeChann
+		msg, open := <-f.keyframeChann
 		if !open {
 			return
 		}
 		// get rtp pkg
 		pkg := new(rtp.Packet)
-		err := pkg.Unmarshal(data)
+		err := pkg.Unmarshal(msg.Data)
 		if err != nil {
 			f.info(fmt.Sprintf("Unmarshal keyframe err: %v", err.Error()))
 			continue
@@ -312,8 +309,8 @@ func (f *Forwarder) serveKeyFrame() {
 		// 	err = f.handleVP8(&pkg)
 		case MimeTypeVP9:
 			if IsVP9Keyframe(pkg.Payload) {
-				fmt.Println("Set key frame")
-				f.setKeyFrame(pkg)
+				f.info(fmt.Sprintf("Setting key frame %s_%s", f.getID(), pkg.String()))
+				f.setKeyFrame(msg)
 			}
 		// case MimeTypeH264:
 		// err = f.handleH264(&pkg)
@@ -328,48 +325,43 @@ func (f *Forwarder) serveKeyFrame() {
 	}
 }
 
-func (f *Forwarder) handleVP8(data *rtp.Packet) error {
-	vp8Packet := &codecs.VP8Packet{}
-	raw, err := vp8Packet.Unmarshal(data.Payload)
-	if err != nil {
-		return err
-	}
+// func (f *Forwarder) handleVP8(data *rtp.Packet) error {
+// 	vp8Packet := &codecs.VP8Packet{}
+// 	raw, err := vp8Packet.Unmarshal(data.Payload)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	if IsVP8Keyframe(raw) {
-		f.setKeyFrame(data)
-		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
-	}
-	return nil
-}
-
-func (f *Forwarder) handleH264(data *rtp.Packet) error {
-	vp8Packet := &codecs.H264Packet{}
-	raw, err := vp8Packet.Unmarshal(data.Payload)
-	if err != nil {
-		return err
-	}
-
-	if IsH264Keyframe(raw) {
-		f.setKeyFrame(data)
-		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
-	}
-	return nil
-}
-
-// isKeyFrame := vp8Packet.Payload[0] & 0x01
-// switch {
-// case !i.seenKeyFrame && isKeyFrame == 1:
-// 	return nil
-// case i.currentFrame == nil && vp8Packet.S != 1:
+// 	if IsVP8Keyframe(raw) {
+// 		f.setKeyFrame(data)
+// 		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
+// 	}
 // 	return nil
 // }
 
-// // Giả sử bạn có 'vp9Packet' đại diện cho gói tin VP9 bạn đã nhận được.
-// vp9PayloadHeader := vp9Packet.Payload[0] // Trích xuất byte đầu tiên của dữ liệu VP9
-// // Kiểm tra xem bit 'I' (Inter-picture predicted frame) có được đặt hay không
-// isKeyFrame := (vp9PayloadHeader & 0x01) == 0
+// func (f *Forwarder) handleH264(data *rtp.Packet) error {
+// 	vp8Packet := &codecs.H264Packet{}
+// 	raw, err := vp8Packet.Unmarshal(data.Payload)
+// 	if err != nil {
+// 		return err
+// 	}
 
-// if isKeyFrame {
-//     // Đây là khung chính (I-frame)
-//     // Thực hiện hành động thích hợp
+// 	if IsH264Keyframe(raw) {
+// 		f.setKeyFrame(data)
+// 		f.info(fmt.Sprintf("Save keyframe info (%s_%d_%d)", f.codec, data.PayloadType, data.SequenceNumber))
+// 	}
+// 	return nil
 // }
+
+// SendKeyFrame send keyframe again to spefic user
+func (f *Forwarder) SendKeyFrame(clientID *string) {
+	// get current keyframe
+	pkg := f.GetKeyFrame()
+	if pkg == nil {
+		return
+	}
+	client := f.getClient(clientID)
+	if client != nil {
+		client.chann <- pkg
+	}
+}
