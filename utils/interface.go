@@ -15,4 +15,6 @@ type Fwdm interface {
 	GetClient(trackID, pcID *string) chan *Wrapper
 	GetLastTimeReceive() map[string]int64
 	GetLastTimeReceiveBy(trackID string) int64
+	SendAllKeyframe(pcID string) error
+	SendKeyframe(trackID, pcID string) error
 }

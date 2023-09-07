@@ -412,9 +412,9 @@ func getNodeLevel() int {
 // HandleVideoTrack handle all video track
 func (p *Peer) HandleVideoTrack(remoteTrack *webrtc.TrackRemote) {
 	// go p.modifyBitrate(remoteTrack)
-	if getNodeLevel() == 0 {
-		go p.pictureLossIndication(remoteTrack)
-	}
+	// if getNodeLevel() == 0 {
+	// 	go p.pictureLossIndication(remoteTrack)
+	// }
 
 	// setRemoteTrack to set PLI on the mand
 	p.setRemoteTrack(remoteTrack)

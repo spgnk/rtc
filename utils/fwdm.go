@@ -26,6 +26,8 @@ type FwdmAction struct {
 	codec  string
 }
 
+var _ Fwdm = (*ForwarderMannager)(nil)
+
 // ForwarderMannager control all forwadrder manager
 type ForwarderMannager struct {
 	id            string // name of forwader audio or video
@@ -272,4 +274,22 @@ func (f *ForwarderMannager) GetLastTimeReceiveBy(trackID string) int64 {
 	f.mutex.RLock()
 	defer f.mutex.RUnlock()
 	return f.dataTime[trackID]
+}
+
+func (f *ForwarderMannager) SendKeyframe(trackID, pcID string) error {
+	fwd := f.getForwarder(&trackID)
+	if fwd == nil {
+		logs.Warn(trackID, "fwd is nil")
+		return nil
+	}
+	fwd.SendKeyFrame(&pcID)
+	return nil
+}
+
+func (f *ForwarderMannager) SendAllKeyframe(pcID string) error {
+	for _, fwd := range f.forwadrders {
+		fwd.SendKeyFrame(&pcID)
+		logs.Warn(fmt.Sprintf("Send keyframe to %s_%s", f.id, pcID))
+	}
+	return nil
 }

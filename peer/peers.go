@@ -30,14 +30,18 @@ type Peers struct {
 func NewPeers(
 	signalID *string, // client signal ID
 	logger utils.Log,
+	audioFwdm utils.Fwdm, // forward audio pkg
+	videoFwdm utils.Fwdm, // forward video pkg
 ) Connections {
 	ps := &Peers{
-		signalID: signalID,
-		peers:    utils.NewAdvanceMap(),
-		isClosed: false,
-		states:   utils.NewAdvanceMap(),
-		headers:  make(map[string]*rtp.Header),
-		logger:   logger,
+		signalID:  signalID,
+		peers:     utils.NewAdvanceMap(),
+		isClosed:  false,
+		states:    utils.NewAdvanceMap(),
+		headers:   make(map[string]*rtp.Header),
+		logger:    logger,
+		audioFwdm: audioFwdm,
+		videoFwdm: videoFwdm,
 	}
 
 	// ps.serve()

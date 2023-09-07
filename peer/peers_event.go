@@ -46,6 +46,22 @@ func (p *Peers) handleICEConnectionState(
 				handleAddPeer(signalID, peer.getRole(), peer.GetPeerConnectionID())
 			}
 		}
+
+		// send keyframe here
+		/*
+			If peer down, send all
+		*/
+		switch *peer.getRole() {
+		case utils.PeerUp:
+			// request send PLI one time
+			peer.SendPictureLossIndication()
+		case utils.PeerDown:
+			// re-send all keyframe if has
+			p.videoFwdm.SendAllKeyframe(*peerConnectionID)
+		default:
+			break
+		}
+
 	case utils.Disconnected:
 		p.checkDisconnected(peerConnectionID, func() {
 			p.checkFailedState(peer.GetPeerConnectionID(), peer.getCookieID(), handleFailedPeer)

@@ -135,7 +135,7 @@ func (w *PeerWorker) Start() error {
 
 // AddConnections add new connections
 func (w *PeerWorker) AddConnections(signalID *string) {
-	connections := peer.NewPeers(signalID, w.logger)
+	connections := peer.NewPeers(signalID, w.logger, w.audioFwdm, w.videoFwdm)
 	if peers := w.getPeers(); peers != nil {
 		peers.Set(*signalID, connections)
 	}
