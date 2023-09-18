@@ -1,5 +1,7 @@
 package utils
 
+import "time"
+
 func (f *ForwarderMannager) checkClose() bool {
 	return f.isClosed
 }
@@ -8,62 +10,35 @@ func (f *ForwarderMannager) setClose(state bool) {
 	f.isClosed = state
 }
 
-func (f *ForwarderMannager) getForwarder(id *string) *Forwarder {
-	f.mutex.RLock()
-	defer f.mutex.RUnlock()
-	return f.forwadrders[*id]
-}
-
-func (f *ForwarderMannager) setForwarder(id *string, fwd *Forwarder) {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-	f.forwadrders[*id] = fwd
-}
-
-func (f *ForwarderMannager) deleteForwarder(id *string) {
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-	delete(f.forwadrders, *id)
-}
-
-func (f *ForwarderMannager) closeForwarder(id *string) {
-	fw := f.getForwarder(id)
-	f.deleteDataTime(*id)
-	if fw != nil {
-		f.deleteForwarder(id)
-		fw.Close()
-		fw = nil
+func (f *ForwarderMannager) getForwarder(trackID string) *Forwarder {
+	fwd, has := f.forwadrders.Get(trackID)
+	if !has {
+		f.logger.WARN("Cannor find fwd with input trackID", map[string]any{
+			"track_id": trackID,
+			"time":     time.Now(),
+		})
 	}
+	return fwd
 }
 
-func (f *ForwarderMannager) closeForwaders() {
-	// f.mutex.RLock()
-	// defer f.mutex.RUnlock()
-	// for _, fwd := range f.forwadrders {
-	// 	fwd.Close()
-	// }
-	// fwds := f.getAllFwd()
-	f.mutex.RLock()
-	defer f.mutex.RUnlock()
-	for _, fwd := range f.forwadrders {
+func (f *ForwarderMannager) setForwarder(trackID string, fwd *Forwarder) {
+	f.forwadrders.Set(trackID, fwd)
+}
+
+func (f *ForwarderMannager) deleteForwarder(trackID string) {
+	f.forwadrders.Remove(trackID)
+}
+
+func (f *ForwarderMannager) closeForwarder(trackID string) {
+	fwd := f.getForwarder(trackID)
+	if fwd != nil {
+		f.deleteForwarder(trackID)
 		fwd.Close()
 	}
 }
 
-func (f *ForwarderMannager) setDatatime(c *ClientDataTime) {
-	f.mutex.Lock()
-	f.dataTime[c.id] = c.t
-	f.mutex.Unlock()
-}
-
-func (f *ForwarderMannager) getDatatime() map[string]int64 {
-	f.mutex.RLock()
-	defer f.mutex.RUnlock()
-	return f.dataTime
-}
-
-func (f *ForwarderMannager) deleteDataTime(fwdID string) {
-	f.mutex.Lock()
-	delete(f.dataTime, fwdID)
-	f.mutex.Unlock()
+func (f *ForwarderMannager) closeForwaders() {
+	for _, fwd := range f.forwadrders.Items() {
+		fwd.Close()
+	}
 }

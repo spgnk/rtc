@@ -84,17 +84,17 @@ var _ (Worker) = (*PeerWorker)(nil)
 
 // PeerWorker Set
 type PeerWorker struct {
-	nodeID              *string                        // node id
-	audioFwdm           utils.Fwdm                     // forward audio pkg
-	videoFwdm           utils.Fwdm                     // forward video pkg
-	peers               *utils.AdvanceMap              // save all peers with signalID
-	upList              map[string]*UpPeer             // handler all stream obj
-	tracks              map[string]*webrtc.TrackRemote // save trackID - obj to check has remote track or not
-	handleNoConnection  func(signalID *string)
-	trackMeta           map[string]bool // save track meta for detach
-	readDeadlineHandler func(pcID, trackID *string, codec, kind string)
-	mutex               sync.RWMutex
-	logger              utils.Log
+	nodeID             *string                        // node id
+	audioFwdm          *utils.ForwarderMannager       // forward audio pkg
+	videoFwdm          *utils.ForwarderMannager       // forward video pkg
+	peers              *utils.AdvanceMap              // save all peers with signalID
+	upList             map[string]*UpPeer             // handler all stream obj
+	tracks             map[string]*webrtc.TrackRemote // save trackID - obj to check has remote track or not
+	handleNoConnection func(signalID *string)
+	trackMeta          map[string]bool // save track meta for detach
+	mutex              sync.RWMutex
+	logger             utils.Log
+	handleChangeSSRC   func(trackID string, pcIDs []string) error
 }
 
 // NewPeerWorker linter
@@ -102,11 +102,12 @@ func NewPeerWorker(
 	nodeID *string,
 	upList map[string]*UpPeer,
 	logger utils.Log,
+	handleChangeSSRC func(trackID string, pcIDs []string) error,
 ) Worker {
 	w := &PeerWorker{
 		nodeID:    nodeID,
-		audioFwdm: utils.NewForwarderMannager(*nodeID),
-		videoFwdm: utils.NewForwarderMannager(*nodeID),
+		audioFwdm: utils.NewForwarderMannager(*nodeID, logger),
+		videoFwdm: utils.NewForwarderMannager(*nodeID, logger),
 		peers:     utils.NewAdvanceMap(),
 		tracks:    make(map[string]*webrtc.TrackRemote),
 		trackMeta: make(map[string]bool),
@@ -115,6 +116,7 @@ func NewPeerWorker(
 			id:     *nodeID,
 			logger: logger,
 		},
+		handleChangeSSRC: handleChangeSSRC,
 	}
 
 	return w
@@ -245,7 +247,7 @@ func (w *PeerWorker) AddVideoFwd(trackID string, codec string) {
 	// if fwdm := w.getVideoFwdm(); fwdm != nil {
 	// 	fwdm.AddNewForwarder(*trackID)
 	// }
-	w.videoFwdm.AddNewForwarder(trackID, codec)
+	w.videoFwdm.AddNewForwarder(trackID, codec, w.handleChangeSSRC)
 }
 
 // AddAudioFwd to add new video fwd
@@ -253,7 +255,7 @@ func (w *PeerWorker) AddAudioFwd(trackID, codec string) {
 	// if fwdm := w.getAudioFwdm(); fwdm != nil {
 	// 	fwdm.AddNewForwarder(*trackID)
 	// }
-	w.audioFwdm.AddNewForwarder(trackID, codec)
+	w.audioFwdm.AddNewForwarder(trackID, codec, nil)
 }
 
 // UnRegister all video and audio
@@ -284,7 +286,7 @@ func (w *PeerWorker) UnRegisterVideo(peerConnectionID, videoTrackID *string) {
 		// 	w.logger.WARN(fmt.Sprintf("%s unRegister (%s) of VideoFwdm", *peerConnectionID, *videoTrackID))
 		// }
 
-		w.videoFwdm.Unregister(videoTrackID, peerConnectionID)
+		w.videoFwdm.Unregister(*videoTrackID, *peerConnectionID)
 		w.logger.WARN(fmt.Sprintf("%s unRegister (%s) of VideoFwdm", *peerConnectionID, *videoTrackID), nil)
 	}
 
@@ -298,7 +300,7 @@ func (w *PeerWorker) UnRegisterAudio(peerConnectionID, audioTrackID *string) {
 		// 	fwdm.Unregister(audioTrackID, peerConnectionID)
 		// 	w.logger.WARN(fmt.Sprintf("%s unRegister (%s) in AudioFwdm", *peerConnectionID, *audioTrackID))
 		// }
-		w.audioFwdm.Unregister(audioTrackID, peerConnectionID)
+		w.audioFwdm.Unregister(*audioTrackID, *peerConnectionID)
 		w.logger.WARN(fmt.Sprintf("%s unRegister (%s) in AudioFwdm", *peerConnectionID, *audioTrackID), nil)
 	}
 }
@@ -507,17 +509,19 @@ func (w *PeerWorker) handleOnTrack(signalID, peerConnectionID *string, remoteTra
 
 	w.logger.INFO(fmt.Sprintf("(%s_%s) Has remote track of id %s_%s", trackID, codec, *signalID, *peerConnectionID), nil)
 
-	var fwdm utils.Fwdm
+	var fwdm *utils.ForwarderMannager
+	var handleChangeSSRC func(trackID string, pcIDs []string) error
 	switch kind {
 	case "video":
 		fwdm = w.videoFwdm
+		handleChangeSSRC = w.handleChangeSSRC
 	case "audio":
 		fwdm = w.audioFwdm
 	default:
 		return
 	}
 
-	go w.pushToFwd(fwdm, remoteTrack, &trackID, &kind, peerConnectionID)
+	go w.pushToFwd(fwdm, remoteTrack, &trackID, &kind, peerConnectionID, handleChangeSSRC)
 }
 
 // ReadRTP is a convenience method that wraps Read and unmarshals for you.
@@ -535,7 +539,12 @@ func (w *PeerWorker) handleOnTrack(signalID, peerConnectionID *string, remoteTra
 // 	return r, attributes, nil
 // }
 
-func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote, trackID, kind, peerConnectionID *string) {
+func (w *PeerWorker) pushToFwd(
+	fwdm *utils.ForwarderMannager,
+	remoteTrack *webrtc.TrackRemote,
+	trackID, kind, peerConnectionID *string,
+	handleChangeSSRC func(trackID string, pcIDs []string) error,
+) {
 	var pkg *rtp.Packet
 	var err error
 	var i int
@@ -591,7 +600,7 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 		// push video to fwd
 		fwd := fwdm.GetForwarder(*trackID)
 		if fwd == nil {
-			fwd = fwdm.AddNewForwarder(*trackID, codec)
+			fwd = fwdm.AddNewForwarder(*trackID, codec, handleChangeSSRC)
 		}
 
 		// pushing data to fwd
@@ -654,39 +663,6 @@ func (w *PeerWorker) findTrackID(peerConnectionID, kind *string) (string, error)
 // GetRemoteTrack linter
 func (w *PeerWorker) GetRemoteTrack(trackID *string) *webrtc.TrackRemote {
 	return w.getRemoteTrack(trackID)
-}
-
-// GetVideoReceiveTime linter
-func (w *PeerWorker) GetVideoReceiveTime() map[string]int64 {
-	return w.videoFwdm.GetLastTimeReceive()
-}
-
-// GetVideoReceiveTimeby linter
-func (w *PeerWorker) GetVideoReceiveTimeby(trackID string) int64 {
-	return w.videoFwdm.GetLastTimeReceiveBy(trackID)
-}
-
-// GetAudioReceiveTime linter
-func (w *PeerWorker) GetAudioReceiveTime() map[string]int64 {
-	return w.audioFwdm.GetLastTimeReceive()
-}
-
-// GetAudioReceiveTimeby linter
-func (w *PeerWorker) GetAudioReceiveTimeby(trackID string) int64 {
-	return w.audioFwdm.GetLastTimeReceiveBy(trackID)
-}
-
-// SetHandleReadDeadline linter
-func (w *PeerWorker) SetHandleReadDeadline(f func(pcID, trackID *string, codec, kind string)) {
-	w.mutex.Lock()
-	w.readDeadlineHandler = f
-	w.mutex.Unlock()
-}
-
-func (w *PeerWorker) handleReadDeadlinefunc(pcID, trackID *string, codec, kind string) {
-	if state := w.GetTrackMeta(*trackID); state {
-		go w.readDeadlineHandler(pcID, trackID, codec, kind)
-	}
 }
 
 func (w *PeerWorker) deleteTrackMeta(trackID string) {

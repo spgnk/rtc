@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/pion/rtp"
 )
 
@@ -45,43 +44,51 @@ type Wrapper struct {
 
 // Action linter
 type Action struct {
-	do     string  // CRUD
-	id     *string // for client id
+	do     string // CRUD
+	id     string // for client id
 	client *Client
 	data   *Wrapper
 }
 
 // Forwarder linter
 type Forwarder struct {
-	id            string // stream id
-	isClosed      bool
-	clients       map[string]*Client // save all client with handler
-	hub           chan *Wrapper      // dispatch all data
-	msgChann      chan *Action       // do what erver
-	ctx           context.Context
-	cancelFunc    context.CancelFunc
-	dataTimeChann chan *ClientDataTime
-	mutex         sync.RWMutex
-	keyframe      *Wrapper // save to keyframe
-	keyframeChann chan *Wrapper
-	codec         string // vp8/vp9/h264
+	id               string // stream id
+	isClosed         bool
+	clients          map[string]*Client // save all client with handler
+	hub              chan *Wrapper      // dispatch all data
+	msgChann         chan *Action       // do what erver
+	ctx              context.Context
+	cancelFunc       context.CancelFunc
+	mutex            sync.RWMutex
+	keyframe         *Wrapper // save to keyframe
+	keyframeChann    chan *Wrapper
+	codec            string // vp8/vp9/h264
+	handleChangeSSRC func(trackID string, pcIDs []string) error
+	lastSSRC         uint32
+	logger           Log
 }
 
 // NewForwarder return new forwarder
-func NewForwarder(id string, codec string, dataTimeChann chan *ClientDataTime) *Forwarder {
+func NewForwarder(
+	id string,
+	codec string,
+	logger Log,
+	handleChangeSSRC func(trackID string, pcIDs []string) error,
+) *Forwarder {
 	ctx, cancel := context.WithCancel(context.Background())
 	f := &Forwarder{
-		id:            id,
-		hub:           make(chan *Wrapper, maxChanSize),
-		msgChann:      make(chan *Action, maxChanSize),
-		clients:       make(map[string]*Client),
-		keyframe:      nil,
-		keyframeChann: make(chan *Wrapper, maxChanSize),
-		isClosed:      false,
-		ctx:           ctx,
-		cancelFunc:    cancel,
-		dataTimeChann: dataTimeChann,
-		codec:         codec,
+		id:               id,
+		hub:              make(chan *Wrapper, maxChanSize),
+		msgChann:         make(chan *Action, maxChanSize),
+		clients:          make(map[string]*Client),
+		keyframe:         nil,
+		keyframeChann:    make(chan *Wrapper, maxChanSize),
+		isClosed:         false,
+		ctx:              ctx,
+		cancelFunc:       cancel,
+		codec:            codec,
+		handleChangeSSRC: handleChangeSSRC,
+		logger:           logger,
 	}
 
 	go f.serve()
@@ -90,18 +97,6 @@ func NewForwarder(id string, codec string, dataTimeChann chan *ClientDataTime) *
 
 	return f
 }
-
-// func (f *Forwarder) getLastReceiveData() int64 {
-// 	f.mutex.RLock()
-// 	defer f.mutex.RUnlock()
-// 	return f.lastReceiveData
-// }
-
-// func (f *Forwarder) setLastReceiveData(t int64) {
-// 	f.mutex.Lock()
-// 	defer f.mutex.Unlock()
-// 	f.lastReceiveData = t
-// }
 
 // Serve to run
 func (f *Forwarder) serve() {
@@ -130,10 +125,6 @@ func (f *Forwarder) dispatch() {
 			f.keyframeChann <- msg
 			f.forward(msg)
 			// go f.setLastReceiveData(time.Now().UnixMilli())
-			f.dataTimeChann <- &ClientDataTime{
-				id: f.getID(),
-				t:  time.Now().UnixMilli(),
-			}
 			msg = nil
 		case <-f.ctx.Done():
 			return
@@ -175,7 +166,7 @@ func (f *Forwarder) forward(wrapper *Wrapper) {
 }
 
 // RemoveClient linter
-func (f *Forwarder) RemoveClient(clientID *string) {
+func (f *Forwarder) RemoveClient(clientID string) {
 	f.msgChann <- &Action{
 		do: closing,
 		id: clientID,
@@ -183,7 +174,7 @@ func (f *Forwarder) RemoveClient(clientID *string) {
 }
 
 // AddClient linter
-func (f *Forwarder) AddClient(clientID *string, client *Client) {
+func (f *Forwarder) AddClient(clientID string, client *Client) {
 	f.msgChann <- &Action{
 		do:     add,
 		client: client,
@@ -209,7 +200,7 @@ func (f *Forwarder) Push(wrapper *Wrapper) {
 }
 
 // UnRegister linter
-func (f *Forwarder) UnRegister(clientID *string) {
+func (f *Forwarder) UnRegister(clientID string) {
 	f.RemoveClient(clientID)
 }
 
@@ -221,7 +212,7 @@ func (f *Forwarder) Register(clientID *string, handler func(trackID string, wrap
 	// 	return
 	// }
 	// f.RemoveClient(clientID)
-	f.closeClient(clientID)
+	f.closeClient(*clientID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	newClient := &Client{
@@ -231,12 +222,12 @@ func (f *Forwarder) Register(clientID *string, handler func(trackID string, wrap
 		cancelFunc: cancel,
 	}
 
-	f.AddClient(clientID, newClient)
+	f.AddClient(*clientID, newClient)
 
-	go f.collectData(clientID, newClient)
+	go f.collectData(*clientID, newClient)
 }
 
-func (f *Forwarder) collectData(clientID *string, c *Client) {
+func (f *Forwarder) collectData(clientID string, c *Client) {
 	// defer func() {
 	// 	// for pushing async data cause crash
 	// 	ticker := time.NewTicker(5 * time.Second)
@@ -257,7 +248,7 @@ func (f *Forwarder) collectData(clientID *string, c *Client) {
 			pkg.Unmarshal(w.Data)
 			buff.Pkg = pkg
 			if err = c.handler(f.getID(), buff); err != nil {
-				f.error(fmt.Sprintf("%s handler err: %v", *clientID, err))
+				f.error(fmt.Sprintf("%s handler err: %v", clientID, err))
 				return
 			}
 
@@ -270,7 +261,7 @@ func (f *Forwarder) collectData(clientID *string, c *Client) {
 			buff = nil
 			pkg = nil
 		case <-c.ctx.Done():
-			logs.Info(f.id, *clientID, " fwd reading loop was closed")
+			// logs.Info(f.id, *clientID, " fwd reading loop was closed")
 			return
 		}
 	}
@@ -311,6 +302,16 @@ func (f *Forwarder) serveKeyFrame() {
 			if IsVP9Keyframe(pkg.Payload) {
 				f.info(fmt.Sprintf("Setting key frame %s_%s", f.getID(), pkg.String()))
 				f.setKeyFrame(msg)
+
+				if f.lastSSRC == 0 {
+					f.lastSSRC = pkg.SSRC
+				} else if f.lastSSRC != pkg.SSRC {
+					// call calback to repeer here
+					f.lastSSRC = pkg.SSRC
+					if f.handleChangeSSRC != nil {
+						f.handleChangeSSRC(f.id, f.listClientID())
+					}
+				}
 			}
 		// case MimeTypeH264:
 		// err = f.handleH264(&pkg)
@@ -354,7 +355,7 @@ func (f *Forwarder) serveKeyFrame() {
 // }
 
 // SendKeyFrame send keyframe again to spefic user
-func (f *Forwarder) SendKeyFrame(clientID *string) {
+func (f *Forwarder) SendKeyFrame(clientID string) {
 	// get current keyframe
 	pkg := f.GetKeyFrame()
 	if pkg == nil {
@@ -364,4 +365,14 @@ func (f *Forwarder) SendKeyFrame(clientID *string) {
 	if client != nil {
 		client.chann <- pkg
 	}
+}
+
+func (f *Forwarder) listClientID() []string {
+	result := make([]string, 0)
+	f.mutex.RLock()
+	defer f.mutex.RUnlock()
+	for id := range f.clients {
+		result = append(result, id)
+	}
+	return result
 }

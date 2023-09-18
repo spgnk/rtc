@@ -71,12 +71,6 @@ type Worker interface {
 	GetRemoteTrack(trackID *string) *webrtc.TrackRemote
 	SetHandleNoConnection(handler func(signalID *string))
 
-	GetVideoReceiveTime() map[string]int64
-	GetAudioReceiveTime() map[string]int64
-	GetVideoReceiveTimeby(trackID string) int64
-	GetAudioReceiveTimeby(trackID string) int64
-
 	GetTrackMeta(trackID string) bool
 	SetTrackMeta(trackID string, state bool)
-	SetHandleReadDeadline(f func(pcID, trackID *string, codec, kind string))
 }
