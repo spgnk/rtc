@@ -95,6 +95,7 @@ type PeerWorker struct {
 	readDeadlineHandler func(pcID, trackID *string, codec, kind string)
 	mutex               sync.RWMutex
 	logger              utils.Log
+	handleSSRC          func(trackID string, pcIDs []string, codec string)
 }
 
 // NewPeerWorker linter
@@ -102,11 +103,12 @@ func NewPeerWorker(
 	nodeID *string,
 	upList map[string]*UpPeer,
 	logger utils.Log,
+	handleSSRC func(trackID string, pcIDs []string, codec string),
 ) Worker {
 	w := &PeerWorker{
 		nodeID:    nodeID,
-		audioFwdm: utils.NewForwarderMannager(*nodeID),
-		videoFwdm: utils.NewForwarderMannager(*nodeID),
+		audioFwdm: utils.NewForwarderMannager(*nodeID, logger, handleSSRC),
+		videoFwdm: utils.NewForwarderMannager(*nodeID, logger, handleSSRC),
 		peers:     utils.NewAdvanceMap(),
 		tracks:    make(map[string]*webrtc.TrackRemote),
 		trackMeta: make(map[string]bool),
@@ -115,6 +117,7 @@ func NewPeerWorker(
 			id:     *nodeID,
 			logger: logger,
 		},
+		handleSSRC: handleSSRC,
 	}
 
 	return w

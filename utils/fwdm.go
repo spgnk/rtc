@@ -3,8 +3,6 @@ package utils
 import (
 	"fmt"
 	"sync"
-
-	"github.com/lamhai1401/gologs/logs"
 )
 
 const (
@@ -38,10 +36,16 @@ type ForwarderMannager struct {
 	dataTimeChann chan *ClientDataTime
 	dataTime      map[string]int64
 	mutex         sync.RWMutex
+	logger        Log
+	handleSSRC    func(trackID string, pcIDs []string, codec string)
 }
 
 // NewForwarderMannager create audio or video forwader
-func NewForwarderMannager(id string) Fwdm {
+func NewForwarderMannager(
+	id string,
+	logger Log,
+	handleSSRC func(trackID string, pcIDs []string, codec string),
+) Fwdm {
 	f := &ForwarderMannager{
 		id:            id,
 		forwadrders:   make(map[string]*Forwarder),
@@ -50,6 +54,8 @@ func NewForwarderMannager(id string) Fwdm {
 		dataTimeChann: make(chan *ClientDataTime, maxChanSize),
 		dataTime:      make(map[string]int64),
 		isClosed:      false,
+		logger:        logger,
+		handleSSRC:    handleSSRC,
 	}
 
 	go f.serve()
@@ -93,7 +99,10 @@ func (f *ForwarderMannager) Close() {
 func (f *ForwarderMannager) GetClient(trackID, pcID *string) chan *Wrapper {
 	fwd := f.getForwarder(trackID)
 	if fwd == nil {
-		logs.Warn(*trackID, "fwd is nil")
+		f.logger.WARN("fwd is nil", map[string]any{
+			"track_id": *trackID,
+			"pc_id":    *pcID,
+		})
 		return nil
 	}
 	c := fwd.getClient(pcID)
@@ -210,9 +219,9 @@ func (f *ForwarderMannager) addNewForwarder(fwdID *string, codec string, result 
 		return
 	}
 	// create new
-	newForwader := NewForwarder(*fwdID, codec, f.dataTimeChann)
+	newForwader := NewForwarder(*fwdID, codec, f.dataTimeChann, f.logger, f.handleSSRC)
 	f.setForwarder(fwdID, newForwader)
-	logs.Info(fmt.Sprintf("Add New %s forwarder successful", *fwdID))
+	f.logger.INFO(fmt.Sprintf("Add New %s forwarder successful", *fwdID), nil)
 	result <- newForwader
 }
 
@@ -233,7 +242,9 @@ func (f *ForwarderMannager) dispatch() {
 func (f *ForwarderMannager) forward(msg *FwdmAction) {
 	forwarder := f.getForwarder(msg.id)
 	if forwarder == nil {
-		logs.Warn(*msg.id, " forwarder is nil. Cannot push")
+		f.logger.WARN("forwarder is nil. Cannot push", map[string]any{
+			"track_id": *msg.id,
+		})
 		return
 	}
 	forwarder.Push(msg.data)
@@ -279,7 +290,10 @@ func (f *ForwarderMannager) GetLastTimeReceiveBy(trackID string) int64 {
 func (f *ForwarderMannager) SendKeyframe(trackID, pcID string) error {
 	fwd := f.getForwarder(&trackID)
 	if fwd == nil {
-		logs.Warn(trackID, "fwd is nil")
+		f.logger.WARN("fwd is nil", map[string]any{
+			"track_id": trackID,
+			"pc_id":    pcID,
+		})
 		return nil
 	}
 	fwd.SendKeyFrame(&pcID)
@@ -289,7 +303,7 @@ func (f *ForwarderMannager) SendKeyframe(trackID, pcID string) error {
 func (f *ForwarderMannager) SendAllKeyframe(pcID string) error {
 	for _, fwd := range f.forwadrders {
 		fwd.SendKeyFrame(&pcID)
-		logs.Warn(fmt.Sprintf("Send keyframe to %s_%s", f.id, pcID))
+		f.logger.WARN(fmt.Sprintf("Send keyframe to %s_%s", f.id, pcID), nil)
 	}
 	return nil
 }

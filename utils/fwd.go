@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lamhai1401/gologs/logs"
 	"github.com/pion/rtp"
 )
 
@@ -65,10 +64,20 @@ type Forwarder struct {
 	keyframe      *Wrapper // save to keyframe
 	keyframeChann chan *Wrapper
 	codec         string // vp8/vp9/h264
+	logger        Log
+	ssrc          uint32
+	// ssrcType video or audio
+	handleSSRC func(trackID string, pcIDs []string, codec string)
 }
 
 // NewForwarder return new forwarder
-func NewForwarder(id string, codec string, dataTimeChann chan *ClientDataTime) *Forwarder {
+func NewForwarder(
+	id string,
+	codec string,
+	dataTimeChann chan *ClientDataTime,
+	logger Log,
+	handleSSRC func(trackID string, pcIDs []string, codec string),
+) *Forwarder {
 	ctx, cancel := context.WithCancel(context.Background())
 	f := &Forwarder{
 		id:            id,
@@ -82,6 +91,8 @@ func NewForwarder(id string, codec string, dataTimeChann chan *ClientDataTime) *
 		cancelFunc:    cancel,
 		dataTimeChann: dataTimeChann,
 		codec:         codec,
+		logger:        logger,
+		handleSSRC:    handleSSRC,
 	}
 
 	go f.serve()
@@ -270,7 +281,7 @@ func (f *Forwarder) collectData(clientID *string, c *Client) {
 			buff = nil
 			pkg = nil
 		case <-c.ctx.Done():
-			logs.Info(f.id, *clientID, " fwd reading loop was closed")
+			f.info(fmt.Sprintf("%v fwd reading loop was closed", *clientID))
 			return
 		}
 	}
@@ -311,6 +322,16 @@ func (f *Forwarder) serveKeyFrame() {
 			if IsVP9Keyframe(pkg.Payload) {
 				f.info(fmt.Sprintf("Setting key frame %s_%s", f.getID(), pkg.String()))
 				f.setKeyFrame(msg)
+
+				if f.ssrc == 0 {
+					f.ssrc = pkg.SSRC
+				} else if f.ssrc != pkg.SSRC { // if detech new keyframe with new ssrc
+					f.ssrc = pkg.SSRC
+					// call reset track here
+					if f.handleSSRC != nil {
+						f.handleSSRC(f.id, f.listClientID(), f.codec)
+					}
+				}
 			}
 		// case MimeTypeH264:
 		// err = f.handleH264(&pkg)
@@ -364,4 +385,14 @@ func (f *Forwarder) SendKeyFrame(clientID *string) {
 	if client != nil {
 		client.chann <- pkg
 	}
+}
+
+func (f *Forwarder) listClientID() []string {
+	result := make([]string, 0)
+	f.mutex.RLock()
+	defer f.mutex.RUnlock()
+	for id := range f.clients {
+		result = append(result, id)
+	}
+	return result
 }
