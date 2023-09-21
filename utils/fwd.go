@@ -65,7 +65,7 @@ type Forwarder struct {
 	keyframeChann chan *Wrapper
 	codec         string // vp8/vp9/h264
 	logger        Log
-	ssrc          uint32
+	// ssrc          uint32
 	// ssrcType video or audio
 	handleSSRC func(trackID string, pcIDs []string, codec string)
 }
@@ -301,6 +301,7 @@ func (f *Forwarder) GetKeyFrame() *Wrapper {
 }
 
 func (f *Forwarder) serveKeyFrame() {
+	defaultSSRC := uint32(0)
 	for {
 		msg, open := <-f.keyframeChann
 		if !open {
@@ -321,15 +322,18 @@ func (f *Forwarder) serveKeyFrame() {
 		case MimeTypeVP9:
 			if IsVP9Keyframe(pkg.Payload) {
 				f.info(fmt.Sprintf("Setting key frame %s_%s", f.getID(), pkg.String()))
+				fmt.Println(f.id, "default ssrc ", defaultSSRC, "new ssrc", pkg.SSRC)
 				f.setKeyFrame(msg)
-
-				if f.ssrc == 0 {
-					f.ssrc = pkg.SSRC
-				} else if f.ssrc != pkg.SSRC { // if detech new keyframe with new ssrc
-					f.ssrc = pkg.SSRC
+				if defaultSSRC == 0 {
+					defaultSSRC = pkg.SSRC
+				} else if defaultSSRC != pkg.SSRC { // if detech new keyframe with new ssrc
+					fmt.Println("default not 0")
+					defaultSSRC = pkg.SSRC
 					// call reset track here
 					if f.handleSSRC != nil {
 						f.handleSSRC(f.id, f.listClientID(), f.codec)
+					} else {
+						fmt.Println("handleSSRC is nil")
 					}
 				}
 			}
