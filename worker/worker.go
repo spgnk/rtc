@@ -85,8 +85,8 @@ var _ (Worker) = (*PeerWorker)(nil)
 // PeerWorker Set
 type PeerWorker struct {
 	nodeID              *string                        // node id
-	audioFwdm           utils.Fwdm                     // forward audio pkg
-	videoFwdm           utils.Fwdm                     // forward video pkg
+	audioFwdm           *utils.ForwarderMannager       // forward audio pkg
+	videoFwdm           *utils.ForwarderMannager       // forward video pkg
 	peers               *utils.AdvanceMap              // save all peers with signalID
 	upList              map[string]*UpPeer             // handler all stream obj
 	tracks              map[string]*webrtc.TrackRemote // save trackID - obj to check has remote track or not
@@ -510,7 +510,7 @@ func (w *PeerWorker) handleOnTrack(signalID, peerConnectionID *string, remoteTra
 
 	w.logger.INFO(fmt.Sprintf("(%s_%s) Has remote track of id %s_%s", trackID, codec, *signalID, *peerConnectionID), nil)
 
-	var fwdm utils.Fwdm
+	var fwdm *utils.ForwarderMannager
 	switch kind {
 	case "video":
 		fwdm = w.videoFwdm
@@ -520,7 +520,7 @@ func (w *PeerWorker) handleOnTrack(signalID, peerConnectionID *string, remoteTra
 		return
 	}
 
-	go w.pushToFwd(fwdm, remoteTrack, &trackID, &kind, peerConnectionID)
+	go w.pushToFwd(fwdm, remoteTrack, trackID, kind, *peerConnectionID)
 }
 
 // ReadRTP is a convenience method that wraps Read and unmarshals for you.
@@ -538,7 +538,7 @@ func (w *PeerWorker) handleOnTrack(signalID, peerConnectionID *string, remoteTra
 // 	return r, attributes, nil
 // }
 
-func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote, trackID, kind, peerConnectionID *string) {
+func (w *PeerWorker) pushToFwd(fwdm *utils.ForwarderMannager, remoteTrack *webrtc.TrackRemote, trackID, kind, peerConnectionID string) {
 	var pkg *rtp.Packet
 	var err error
 	var i int
@@ -548,7 +548,7 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 	// readDeadLine := 16 * time.Second
 
 	defer func() {
-		w.deleteTrackMeta(*trackID)
+		w.deleteTrackMeta(trackID)
 	}()
 
 	var rlBufPool = sync.Pool{New: func() interface{} {
@@ -592,9 +592,9 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 		// }
 
 		// push video to fwd
-		fwd := fwdm.GetForwarder(*trackID)
+		fwd := fwdm.GetForwarder(trackID)
 		if fwd == nil {
-			fwd = fwdm.AddNewForwarder(*trackID, codec)
+			fwd = fwdm.AddNewForwarder(trackID, codec)
 		}
 
 		// pushing data to fwd
@@ -603,7 +603,7 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 				// Pkg: pkg,
 				Data: (*b)[:i],
 			})
-			w.logger.STACK(fmt.Sprintf("%s_%s Push rtp pkg to fwd %s", *peerConnectionID, codec, *trackID))
+			w.logger.STACK(fmt.Sprintf("%s_%s Push rtp pkg to fwd %s", peerConnectionID, codec, trackID))
 		}
 
 		*b = make([]byte, 1460)
@@ -655,7 +655,7 @@ func (w *PeerWorker) findTrackID(peerConnectionID, kind *string) (string, error)
 }
 
 // GetRemoteTrack linter
-func (w *PeerWorker) GetRemoteTrack(trackID *string) *webrtc.TrackRemote {
+func (w *PeerWorker) GetRemoteTrack(trackID string) *webrtc.TrackRemote {
 	return w.getRemoteTrack(trackID)
 }
 

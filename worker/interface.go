@@ -68,7 +68,7 @@ type Worker interface {
 	AddUpList(peerConnectionID *string, c *UpPeer)
 	AppendUpList(pcID *string, obj *UpPeer)
 
-	GetRemoteTrack(trackID *string) *webrtc.TrackRemote
+	GetRemoteTrack(trackID string) *webrtc.TrackRemote
 	SetHandleNoConnection(handler func(signalID *string))
 
 	GetVideoReceiveTime() map[string]int64

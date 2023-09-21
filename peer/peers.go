@@ -16,11 +16,11 @@ import (
 // Peers handle mutilpe peer connection
 type Peers struct {
 	signalID  *string
-	audioFwdm utils.Fwdm             // forward audio pkg
-	videoFwdm utils.Fwdm             // forward video pkg
-	states    *utils.AdvanceMap      // save all client state peerConnectionID - state
-	peers     *utils.AdvanceMap      // save peerConnectionID - peer
-	headers   map[string]*rtp.Header // save data header with for data header
+	audioFwdm *utils.ForwarderMannager // forward audio pkg
+	videoFwdm *utils.ForwarderMannager // forward video pkg
+	states    *utils.AdvanceMap        // save all client state peerConnectionID - state
+	peers     *utils.AdvanceMap        // save peerConnectionID - peer
+	headers   map[string]*rtp.Header   // save data header with for data header
 	isClosed  bool
 	mutex     sync.RWMutex
 	logger    utils.Log
@@ -30,8 +30,8 @@ type Peers struct {
 func NewPeers(
 	signalID *string, // client signal ID
 	logger utils.Log,
-	audioFwdm utils.Fwdm, // forward audio pkg
-	videoFwdm utils.Fwdm, // forward video pkg
+	audioFwdm *utils.ForwarderMannager, // forward audio pkg
+	videoFwdm *utils.ForwarderMannager, // forward video pkg
 ) Connections {
 	ps := &Peers{
 		signalID:  signalID,

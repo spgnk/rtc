@@ -140,20 +140,20 @@ func (w *PeerWorker) setUpPeer(pcID *string, obj *UpPeer) {
 // 	return w.videoFwdm
 // }
 
-func (w *PeerWorker) setRemoteTrack(trackID *string, track *webrtc.TrackRemote) {
+func (w *PeerWorker) setRemoteTrack(trackID string, track *webrtc.TrackRemote) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	w.tracks[*trackID] = track
+	w.tracks[trackID] = track
 }
 
-func (w *PeerWorker) getRemoteTrack(trackID *string) *webrtc.TrackRemote {
+func (w *PeerWorker) getRemoteTrack(trackID string) *webrtc.TrackRemote {
 	w.mutex.RLock()
 	defer w.mutex.RUnlock()
-	return w.tracks[*trackID]
+	return w.tracks[trackID]
 }
 
-func (w *PeerWorker) deleteRemoteTrack(trackID *string) {
+func (w *PeerWorker) deleteRemoteTrack(trackID string) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	delete(w.tracks, *trackID)
+	delete(w.tracks, trackID)
 }

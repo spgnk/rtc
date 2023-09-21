@@ -24,8 +24,6 @@ type FwdmAction struct {
 	codec  string
 }
 
-var _ Fwdm = (*ForwarderMannager)(nil)
-
 // ForwarderMannager control all forwadrder manager
 type ForwarderMannager struct {
 	id            string // name of forwader audio or video
@@ -45,7 +43,7 @@ func NewForwarderMannager(
 	id string,
 	logger Log,
 	handleSSRC func(trackID string, pcIDs []string, codec string),
-) Fwdm {
+) *ForwarderMannager {
 	f := &ForwarderMannager{
 		id:            id,
 		forwadrders:   make(map[string]*Forwarder),
@@ -199,7 +197,7 @@ func (f *ForwarderMannager) Register(trackID string, clientID string, handler fu
 func (f *ForwarderMannager) choosing(action *FwdmAction) {
 	switch action.do {
 	case add:
-		go f.addNewForwarder(action.id, action.codec, action.result)
+		f.addNewForwarder(action.id, action.codec, action.result)
 	// case closing:
 	// go f.closeForwarder(action.id)
 	case hub:
@@ -301,6 +299,7 @@ func (f *ForwarderMannager) SendKeyframe(trackID, pcID string) error {
 }
 
 func (f *ForwarderMannager) SendAllKeyframe(pcID string) error {
+	f.logger.WARN(fmt.Sprintf("Send All keyframe from %s to %s", f.id, pcID), nil)
 	for _, fwd := range f.forwadrders {
 		fwd.SendKeyFrame(&pcID)
 		f.logger.WARN(fmt.Sprintf("Send keyframe to %s_%s", f.id, pcID), nil)

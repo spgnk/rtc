@@ -22,13 +22,13 @@ func (p *Peers) wasClosed() bool {
 	return p.isClosed
 }
 
-func (p *Peers) getAudioFwdm() utils.Fwdm {
+func (p *Peers) getAudioFwdm() *utils.ForwarderMannager {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	return p.audioFwdm
 }
 
-func (p *Peers) getVideoFwdm() utils.Fwdm {
+func (p *Peers) getVideoFwdm() *utils.ForwarderMannager {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	return p.videoFwdm
