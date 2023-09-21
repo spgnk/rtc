@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/lamhai1401/sdpParser v0.0.1
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/orcaman/concurrent-map/v2 v2.0.1
 	github.com/pion/interceptor v0.1.17
 	github.com/pion/rtcp v1.2.10
 	github.com/pion/rtp v1.8.0

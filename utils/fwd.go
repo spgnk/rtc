@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	cmap "github.com/orcaman/concurrent-map/v2"
 	"github.com/pion/rtp"
 )
 
@@ -54,9 +55,9 @@ type Action struct {
 type Forwarder struct {
 	id            string // stream id
 	isClosed      bool
-	clients       map[string]*Client // save all client with handler
-	hub           chan *Wrapper      // dispatch all data
-	msgChann      chan *Action       // do what erver
+	clients       cmap.ConcurrentMap[string, *Client] // save all client with handler
+	hub           chan *Wrapper                       // dispatch all data
+	msgChann      chan *Action                        // do what erver
 	ctx           context.Context
 	cancelFunc    context.CancelFunc
 	dataTimeChann chan *ClientDataTime
@@ -83,7 +84,7 @@ func NewForwarder(
 		id:            id,
 		hub:           make(chan *Wrapper, maxChanSize),
 		msgChann:      make(chan *Action, maxChanSize),
-		clients:       make(map[string]*Client),
+		clients:       cmap.New[*Client](),
 		keyframe:      nil,
 		keyframeChann: make(chan *Wrapper, maxChanSize),
 		isClosed:      false,
@@ -175,12 +176,7 @@ func (f *Forwarder) choosing(action *Action) {
 }
 
 func (f *Forwarder) forward(wrapper *Wrapper) {
-	f.mutex.RLock()
-	defer func() {
-		f.mutex.RUnlock()
-		handlepanic(nil)
-	}()
-	for _, client := range f.clients {
+	for _, client := range f.clients.Items() {
 		client.chann <- wrapper
 	}
 }
@@ -301,6 +297,7 @@ func (f *Forwarder) GetKeyFrame() *Wrapper {
 }
 
 func (f *Forwarder) serveKeyFrame() {
+	fmt.Println("Starting serveKeyFrame ", f.id)
 	defaultSSRC := uint32(0)
 	for {
 		msg, open := <-f.keyframeChann
@@ -392,11 +389,5 @@ func (f *Forwarder) SendKeyFrame(clientID *string) {
 }
 
 func (f *Forwarder) listClientID() []string {
-	result := make([]string, 0)
-	f.mutex.RLock()
-	defer f.mutex.RUnlock()
-	for id := range f.clients {
-		result = append(result, id)
-	}
-	return result
+	return f.clients.Keys()
 }
