@@ -3,6 +3,7 @@ package worker
 import (
 	"github.com/pion/webrtc/v3"
 	"github.com/spgnk/rtc/peer"
+	"github.com/spgnk/rtc/utils"
 )
 
 // Worker peer connection worker
@@ -79,4 +80,7 @@ type Worker interface {
 	GetTrackMeta(trackID string) bool
 	SetTrackMeta(trackID string, state bool)
 	SetHandleReadDeadline(f func(pcID, trackID *string, codec, kind string))
+
+	GetVideoFwd(trackID string) *utils.Forwarder
+	GetAudioFwd(trackID string) *utils.Forwarder
 }

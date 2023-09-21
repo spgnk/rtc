@@ -712,3 +712,11 @@ func (w *PeerWorker) SetTrackMeta(trackID string, state bool) {
 	w.trackMeta[trackID] = state
 	w.mutex.Unlock()
 }
+
+func (w *PeerWorker) GetVideoFwd(trackID string) *utils.Forwarder {
+	return w.videoFwdm.GetForwarder(trackID)
+}
+
+func (w *PeerWorker) GetAudioFwd(trackID string) *utils.Forwarder {
+	return w.audioFwdm.GetForwarder(trackID)
+}
