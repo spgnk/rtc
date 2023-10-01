@@ -131,6 +131,7 @@ func (f *Forwarder) serve() {
 func (f *Forwarder) dispatch() {
 	var msg *Wrapper
 	var open bool
+	defaultSSRC := uint32(0)
 	defer close(f.hub)
 	for {
 		select {
@@ -139,9 +140,42 @@ func (f *Forwarder) dispatch() {
 				return
 			}
 
-			f.keyframeChann <- msg
+			// get rtp pkg
+			pkg := new(rtp.Packet)
+			err := pkg.Unmarshal(msg.Data)
+			if err != nil {
+				f.info(fmt.Sprintf("Unmarshal keyframe err: %v", err.Error()))
+				continue
+			}
+
+			// parsing codec pkg
+			switch f.codec {
+			// case MimeTypeVP8:
+			// 	err = f.handleVP8(&pkg)
+			case MimeTypeVP9:
+				if IsVP9Keyframe(pkg.Payload) {
+					f.info(fmt.Sprintf("Setting key frame %s_%s", f.getID(), pkg.String()))
+					f.info(f.id, "default ssrc ", defaultSSRC, "new ssrc", pkg.SSRC)
+					f.setKeyFrame(msg)
+					if defaultSSRC == 0 {
+						defaultSSRC = pkg.SSRC
+					} else if defaultSSRC != pkg.SSRC { // if detech new keyframe with new ssrc
+						f.info("default not 0")
+						defaultSSRC = pkg.SSRC
+						// call reset track here
+						if f.handleSSRC != nil {
+							f.handleSSRC(f.id, f.listClientID(), f.codec)
+						} else {
+							f.info("handleSSRC is nil")
+						}
+					}
+				}
+			}
+
+			// f.keyframeChann <- msg
 			f.forward(msg)
 			// go f.setLastReceiveData(time.Now().UnixMilli())
+
 			f.dataTimeChann <- &ClientDataTime{
 				id: f.getID(),
 				t:  time.Now().UnixMilli(),
@@ -241,6 +275,9 @@ func (f *Forwarder) Register(clientID *string, handler func(trackID string, wrap
 	f.AddClient(clientID, newClient)
 
 	go f.collectData(clientID, newClient)
+
+	f.info(fmt.Sprintf("Register success. Send first keyframe to %s", *clientID))
+	f.SendKeyFrame(clientID)
 }
 
 func (f *Forwarder) collectData(clientID *string, c *Client) {
@@ -297,7 +334,7 @@ func (f *Forwarder) GetKeyFrame() *Wrapper {
 }
 
 func (f *Forwarder) serveKeyFrame() {
-	fmt.Println("Starting serveKeyFrame ", f.id)
+	f.info("Starting serveKeyFrame ", f.id)
 	defaultSSRC := uint32(0)
 	for {
 		msg, open := <-f.keyframeChann
@@ -319,18 +356,18 @@ func (f *Forwarder) serveKeyFrame() {
 		case MimeTypeVP9:
 			if IsVP9Keyframe(pkg.Payload) {
 				f.info(fmt.Sprintf("Setting key frame %s_%s", f.getID(), pkg.String()))
-				fmt.Println(f.id, "default ssrc ", defaultSSRC, "new ssrc", pkg.SSRC)
+				f.info(f.id, "default ssrc ", defaultSSRC, "new ssrc", pkg.SSRC)
 				f.setKeyFrame(msg)
 				if defaultSSRC == 0 {
 					defaultSSRC = pkg.SSRC
 				} else if defaultSSRC != pkg.SSRC { // if detech new keyframe with new ssrc
-					fmt.Println("default not 0")
+					f.info("default not 0")
 					defaultSSRC = pkg.SSRC
 					// call reset track here
 					if f.handleSSRC != nil {
 						f.handleSSRC(f.id, f.listClientID(), f.codec)
 					} else {
-						fmt.Println("handleSSRC is nil")
+						f.info("handleSSRC is nil")
 					}
 				}
 			}
@@ -380,6 +417,7 @@ func (f *Forwarder) SendKeyFrame(clientID *string) {
 	// get current keyframe
 	pkg := f.GetKeyFrame()
 	if pkg == nil {
+		f.info(fmt.Sprintf("%s keyframe is nil. Cannotsend to %s", f.id, *clientID))
 		return
 	}
 	client := f.getClient(clientID)
