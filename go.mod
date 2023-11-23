@@ -11,6 +11,7 @@ require (
 	github.com/pion/rtp v1.8.0
 	github.com/pion/webrtc/v3 v3.2.14
 	github.com/segmentio/ksuid v1.0.4
+	github.com/xlab/libvpx-go v0.0.0-20220203233824-652b2616315c
 )
 
 require (

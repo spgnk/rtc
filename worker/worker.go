@@ -557,6 +557,10 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 		return &rtp.Packet{}
 	}}
 
+	imgChann := make(chan []byte, 100)
+	imgDecoder := utils.NewVDecoder(utils.VCodec(codec), imgChann)
+	imgDecoder.Save("./tmp.jpeg")
+
 	w.setRemoteTrack(trackID, remoteTrack)
 	defer w.deleteRemoteTrack(trackID)
 	for {
@@ -596,9 +600,11 @@ func (w *PeerWorker) pushToFwd(fwdm utils.Fwdm, remoteTrack *webrtc.TrackRemote,
 
 		// pushing data to fwd
 		if fwd != nil {
+			data := (*b)[:i]
+			imgChann <- data
 			fwd.Push(&utils.Wrapper{
 				// Pkg: pkg,
-				Data: (*b)[:i],
+				Data: data,
 			})
 			w.logger.STACK(fmt.Sprintf("%s_%s Push rtp pkg to fwd %s", *peerConnectionID, codec, *trackID))
 		}
