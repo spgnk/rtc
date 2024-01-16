@@ -3,7 +3,7 @@ package utils
 // Fwdm linter
 type Fwdm interface {
 	UnregisterAll(peerConnectionID string) // unregister of fwd with input peer connection id
-	// RegisterAll(clientID string, handler func(trackID string, wrapper *Wrapper) error)
+	RegisterAll(clientID string, handler func(trackID string, wrapper *Wrapper) error)
 	Register(fwdID string, clientID string, handler func(trackID string, wrapper *Wrapper) error)
 	Unregister(trackID, pcID *string)
 	AddNewForwarder(id string) *Forwarder

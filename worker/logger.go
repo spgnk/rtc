@@ -1,6 +1,9 @@
 package worker
 
-import "github.com/spgnk/rtc/utils"
+import (
+	"github.com/lamhai1401/gologs/logs"
+	"github.com/spgnk/rtc/utils"
+)
 
 type workerLog struct {
 	id     string
@@ -13,7 +16,11 @@ func (w *workerLog) ERROR(v string, tags map[string]any) {
 	}
 	tags["node_id"] = w.id
 	tags["status"] = "error"
-	w.logger.ERROR(v, tags)
+	if w.logger == nil {
+		logs.Error(v, tags)
+	} else {
+		w.logger.ERROR(v, tags)
+	}
 }
 
 func (w *workerLog) INFO(v string, tags map[string]any) {
@@ -22,11 +29,19 @@ func (w *workerLog) INFO(v string, tags map[string]any) {
 	}
 	tags["node_id"] = w.id
 	tags["status"] = "info"
-	w.logger.INFO(v, tags)
+	if w.logger == nil {
+		logs.Error(v, tags)
+	} else {
+		w.logger.INFO(v, tags)
+	}
 }
 
 func (w *workerLog) STACK(v ...string) {
-	w.logger.STACK(v...)
+	if w.logger == nil {
+		logs.Stack(v...)
+	} else {
+		w.logger.STACK(v...)
+	}
 }
 
 func (w *workerLog) WARN(v string, tags map[string]any) {
@@ -35,7 +50,11 @@ func (w *workerLog) WARN(v string, tags map[string]any) {
 	}
 	tags["node_id"] = w.id
 	tags["status"] = "warn"
-	w.logger.WARN(v, tags)
+	if w.logger == nil {
+		logs.Error(v, tags)
+	} else {
+		w.logger.WARN(v, tags)
+	}
 }
 
 func (w *workerLog) DEBUG(v string, tags map[string]any) {
@@ -44,5 +63,10 @@ func (w *workerLog) DEBUG(v string, tags map[string]any) {
 	}
 	tags["node_id"] = w.id
 	tags["status"] = "debug"
-	w.logger.DEBUG(v, tags)
+
+	if w.logger == nil {
+		logs.Error(v, tags)
+	} else {
+		w.logger.DEBUG(v, tags)
+	}
 }

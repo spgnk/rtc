@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	// "github.com/lamhai1401/gologs/loki"
-
 	"github.com/spgnk/rtc/errs"
 	"github.com/spgnk/rtc/utils"
 

@@ -271,3 +271,11 @@ func (f *ForwarderMannager) GetLastTimeReceiveBy(trackID string) int64 {
 	defer f.mutex.RUnlock()
 	return f.dataTime[trackID]
 }
+
+func (f *ForwarderMannager) RegisterAll(clientID string, handler func(trackID string, wrapper *Wrapper) error) {
+	f.mutex.RLock()
+	defer f.mutex.RUnlock()
+	for _, fwd := range f.forwadrders {
+		fwd.Register(&clientID, handler)
+	}
+}
